@@ -1,3 +1,6 @@
+import os
+import json
+from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
@@ -134,3 +137,37 @@ async def update_prompt(name: str, data: PromptUpdate):
         pass
     
     return {"success": True, "message": f"Prompt '{name}' guardado en archivos"}
+
+
+_PROJECT_ROOT = Path(__file__).parent.parent
+PROMPT_CONFIG_PATH = str(_PROJECT_ROOT / "data" / "prompt_config.json")
+
+
+@router.get("/prompt-config")
+async def get_prompt_config():
+    if os.path.exists(PROMPT_CONFIG_PATH):
+        with open(PROMPT_CONFIG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"use_custom": False, "mode": "builder", "raw_content": "", "builder": {}}
+
+
+@router.post("/prompt-config")
+async def save_prompt_config(data: dict):
+    os.makedirs(str(_PROJECT_ROOT / "data"), exist_ok=True)
+    with open(PROMPT_CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return {"success": True, "message": "Configuración de prompt guardada"}
+
+
+@router.get("/prompt-config/active")
+async def get_active_prompt_preview():
+    from ai.prompt_loader import PromptLoader
+    loader = PromptLoader()
+    text = loader.load()
+    return {
+        "prompt_preview": text[:500] + "..." if len(text) > 500 else text,
+        "total_chars": len(text),
+        "config_path": PROMPT_CONFIG_PATH,
+        "config_exists": os.path.exists(PROMPT_CONFIG_PATH)
+    }
+

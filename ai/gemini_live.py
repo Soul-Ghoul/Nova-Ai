@@ -25,9 +25,9 @@ class GeminiLiveClient:
 
     def _build_config(self, prompt_name: str = "nova_default") -> types.LiveConnectConfig:
         system_prompt = self._prompt_loader.load(prompt_name)
-        tools = self._registry.load_schemas()
+        tools         = self._registry.load_schemas()
 
-        config = types.LiveConnectConfig(
+        return types.LiveConnectConfig(
             response_modalities=["AUDIO"],
             system_instruction=types.Content(
                 parts=[types.Part(text=system_prompt)]
@@ -39,7 +39,6 @@ class GeminiLiveClient:
                 )
             ),
         )
-        return config
 
     async def start_session(self, session: CallSession, prompt_name: str = "nova_default"):
         if not self._client:

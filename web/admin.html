@@ -3,241 +3,867 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asistente Virtual — Panel de Administración</title>
-    <meta name="description" content="Panel de administración para configurar extensiones, inventario, prompts y monitoreo del Asistente Virtual">
+    <title>Nova — Panel de Administración</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* ── RESET & ROOT ── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-base:    #080b11;
+            --bg-panel:   #0d1117;
+            --bg-card:    #111620;
+            --bg-input:   #0d1117;
+            --bg-hover:   #161c28;
+
+            --border:     rgba(255,255,255,0.06);
+            --border-mid: rgba(255,255,255,0.10);
+            --border-hi:  rgba(255,255,255,0.18);
+
+            --accent:     #4f8ef7;
+            --accent-2:   #7c5ef5;
+            --accent-glow:rgba(79,142,247,0.25);
+            --accent-dim: rgba(79,142,247,0.12);
+
+            --green:  #34d399;
+            --red:    #f87171;
+            --amber:  #fbbf24;
+            --cyan:   #67e8f9;
+
+            --text-1: #e8edf5;
+            --text-2: #8896aa;
+            --text-3: #4e5d71;
+
+            --radius-sm: 6px;
+            --radius:    10px;
+            --radius-lg: 16px;
+            --radius-xl: 22px;
+
+            --font-display: 'Syne', sans-serif;
+            --font-body:    'DM Sans', sans-serif;
+            --font-mono:    'JetBrains Mono', monospace;
+
+            --transition: 180ms cubic-bezier(.4,0,.2,1);
+            --shadow-card: 0 1px 3px rgba(0,0,0,.5), 0 0 0 1px var(--border);
+            --shadow-hi:   0 4px 24px rgba(0,0,0,.6), 0 0 0 1px var(--border-mid);
+        }
+
+        html { font-size: 15px; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-base);
+            color: var(--text-1);
+            min-height: 100vh;
+            line-height: 1.55;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── AMBIENT BG ── */
+        .ambient {
+            position: fixed; inset: 0; pointer-events: none; z-index: 0;
+            overflow: hidden;
+        }
+        .orb {
+            position: absolute; border-radius: 50%;
+            filter: blur(90px); opacity: 0.18;
+            animation: drift 18s ease-in-out infinite alternate;
+        }
+        .orb-1 { width: 500px; height: 500px; top: -160px; left: -100px; background: #4f8ef7; }
+        .orb-2 { width: 400px; height: 400px; bottom: -80px; right: -80px; background: #7c5ef5; animation-delay: -6s; }
+        .orb-3 { width: 300px; height: 300px; top: 40%; left: 45%; background: #34d399; opacity: 0.08; animation-delay: -12s; }
+        @keyframes drift { to { transform: translate(40px, 30px) scale(1.08); } }
+
+        /* ── LAYOUT ── */
+        .app { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+        /* ── HEADER ── */
+        header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 28px; height: 60px;
+            background: rgba(8,11,17,0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 34px; height: 34px; }
+        .logo-word { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; letter-spacing: .02em; }
+        .logo-badge {
+            font-size: 0.65rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+            color: var(--text-3); padding: 2px 7px; border-radius: 20px;
+            border: 1px solid var(--border-mid); background: var(--bg-card);
+        }
+        .btn-ghost {
+            display: flex; align-items: center; gap: 7px;
+            padding: 7px 14px; border-radius: var(--radius-sm);
+            border: 1px solid var(--border-mid); background: transparent;
+            color: var(--text-2); font-family: var(--font-body); font-size: 0.82rem;
+            cursor: pointer; transition: all var(--transition);
+            text-decoration: none;
+        }
+        .btn-ghost:hover { border-color: var(--border-hi); color: var(--text-1); background: var(--bg-hover); }
+
+        /* ── MAIN ── */
+        main {
+            flex: 1; max-width: 1260px; width: 100%;
+            margin: 0 auto; padding: 36px 28px 60px;
+        }
+        .page-header { margin-bottom: 32px; }
+        .page-title { font-family: var(--font-display); font-size: 1.45rem; font-weight: 700; }
+        .page-sub { color: var(--text-2); font-size: 0.85rem; margin-top: 5px; }
+
+        /* ── TABS ── */
+        .tabs {
+            display: flex; gap: 4px; padding: 4px;
+            background: var(--bg-card); border-radius: var(--radius);
+            border: 1px solid var(--border); width: fit-content;
+            margin-bottom: 28px; flex-wrap: wrap;
+        }
+        .tab {
+            padding: 7px 16px; border-radius: 7px;
+            border: none; background: transparent;
+            color: var(--text-2); font-family: var(--font-body); font-size: 0.82rem;
+            cursor: pointer; transition: all var(--transition); white-space: nowrap;
+        }
+        .tab:hover { color: var(--text-1); background: var(--bg-hover); }
+        .tab.active {
+            background: var(--accent-dim); color: var(--accent);
+            box-shadow: inset 0 0 0 1px rgba(79,142,247,.3);
+        }
+
+        /* ── PANELS ── */
+        .panel { display: none; }
+        .panel.active { display: block; animation: fadeUp .22s ease; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
+
+        /* ── CARD ── */
+        .card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); padding: 24px;
+            box-shadow: var(--shadow-card);
+            transition: border-color var(--transition);
+        }
+        .card + .card { margin-top: 16px; }
+        .card-title { font-family: var(--font-display); font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; }
+        .card-sub { color: var(--text-2); font-size: 0.8rem; margin-bottom: 18px; }
+
+        /* ── FORM ── */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 0.78rem; font-weight: 500; color: var(--text-2); letter-spacing: .03em; }
+        .form-group input, .form-group textarea, .form-group select {
+            background: var(--bg-input); border: 1px solid var(--border-mid);
+            border-radius: var(--radius-sm); color: var(--text-1);
+            font-family: var(--font-body); font-size: 0.85rem;
+            padding: 9px 12px; outline: none; width: 100%;
+            transition: all var(--transition);
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+        .form-group textarea { resize: vertical; line-height: 1.5; }
+        .form-group textarea.mono { font-family: var(--font-mono); font-size: 0.78rem; }
+
+        /* ── BUTTONS ── */
+        .btn-primary {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 10px 20px; border-radius: var(--radius-sm);
+            background: var(--accent); color: #fff;
+            font-family: var(--font-body); font-size: 0.83rem; font-weight: 500;
+            border: none; cursor: pointer; transition: all var(--transition);
+        }
+        .btn-primary:hover { background: #6ba2ff; box-shadow: 0 0 20px var(--accent-glow); }
+        .btn-secondary {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 10px 18px; border-radius: var(--radius-sm);
+            background: transparent; color: var(--cyan);
+            font-family: var(--font-body); font-size: 0.83rem; font-weight: 500;
+            border: 1px solid rgba(103,232,249,.25); cursor: pointer; transition: all var(--transition);
+        }
+        .btn-secondary:hover { background: rgba(103,232,249,.08); border-color: rgba(103,232,249,.5); }
+        .btn-danger {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 12px; border-radius: var(--radius-sm);
+            background: rgba(248,113,113,.08); color: var(--red);
+            border: 1px solid rgba(248,113,113,.2); font-size: 0.78rem;
+            cursor: pointer; transition: all var(--transition); font-family: var(--font-body);
+        }
+        .btn-danger:hover { background: rgba(248,113,113,.15); border-color: rgba(248,113,113,.4); }
+        .btn-sm { padding: 7px 14px; font-size: 0.78rem; }
+        .btn-full { width: 100%; justify-content: center; }
+
+        /* ── TABLE ── */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+        .data-table thead th {
+            text-align: left; padding: 10px 14px;
+            font-size: 0.72rem; font-weight: 500; letter-spacing: .06em; text-transform: uppercase;
+            color: var(--text-3); border-bottom: 1px solid var(--border);
+        }
+        .data-table tbody tr { border-bottom: 1px solid var(--border); transition: background var(--transition); }
+        .data-table tbody tr:last-child { border-bottom: none; }
+        .data-table tbody tr:hover { background: var(--bg-hover); }
+        .data-table td { padding: 12px 14px; color: var(--text-2); vertical-align: middle; }
+        .data-table td:first-child { color: var(--text-1); }
+        .empty-state { text-align: center; color: var(--text-3); padding: 36px !important; }
+
+        /* status pill */
+        .pill {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 3px 9px; border-radius: 20px;
+            font-size: 0.72rem; font-weight: 500;
+        }
+        .pill-green { background: rgba(52,211,153,.1); color: var(--green); }
+        .pill-amber { background: rgba(251,191,36,.1); color: var(--amber); }
+        .pill-red   { background: rgba(248,113,113,.1); color: var(--red); }
+        .pill::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+        /* ── PROMPT PANEL ── */
+
+        /* Source bar */
+        .source-bar {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 20px; border-radius: var(--radius);
+            background: var(--bg-card); border: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+        .source-label { font-size: 0.78rem; color: var(--text-3); font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
+        .source-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 0.78rem; font-weight: 500; letter-spacing: .02em;
+            background: var(--accent-dim); color: var(--accent);
+            border: 1px solid rgba(79,142,247,.25);
+        }
+        .source-bar .spacer { flex: 1; }
+        .toggle-wrap { display: flex; align-items: center; gap: 10px; }
+        .toggle-desc { font-size: 0.8rem; color: var(--text-2); }
+
+        /* Toggle switch */
+        .toggle { position: relative; width: 40px; height: 22px; display: inline-block; }
+        .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+        .toggle-track {
+            position: absolute; inset: 0; background: var(--bg-input);
+            border: 1px solid var(--border-mid); border-radius: 11px;
+            cursor: pointer; transition: all var(--transition);
+        }
+        .toggle-track::after {
+            content: ''; position: absolute;
+            left: 3px; top: 3px; width: 14px; height: 14px;
+            border-radius: 50%; background: var(--text-3);
+            transition: all var(--transition);
+        }
+        .toggle input:checked + .toggle-track { background: var(--accent); border-color: var(--accent); }
+        .toggle input:checked + .toggle-track::after { transform: translateX(18px); background: #fff; }
+
+        /* Mode tabs */
+        .mode-tabs {
+            display: flex; gap: 2px; padding: 3px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); width: fit-content;
+            margin-bottom: 20px;
+        }
+        .mode-tab {
+            padding: 6px 14px; border-radius: 5px; border: none;
+            background: transparent; color: var(--text-2);
+            font-family: var(--font-body); font-size: 0.8rem;
+            cursor: pointer; transition: all var(--transition);
+        }
+        .mode-tab:hover { color: var(--text-1); }
+        .mode-tab.active { background: var(--bg-hover); color: var(--text-1); box-shadow: 0 0 0 1px var(--border-mid); }
+
+        .mode-panel { display: none; }
+        .mode-panel.active { display: block; animation: fadeUp .2s ease; }
+
+        /* Builder grid */
+        .builder-grid { display: grid; grid-template-columns: 1fr 420px; gap: 20px; align-items: start; }
+        .builder-form { display: flex; flex-direction: column; gap: 0; }
+
+        /* Builder section */
+        .section {
+            border-bottom: 1px solid var(--border);
+            padding: 20px 0; background: none;
+        }
+        .section:first-child { padding-top: 0; }
+        .section:last-of-type { border-bottom: none; padding-bottom: 0; }
+        .section-title {
+            font-family: var(--font-display); font-size: 0.8rem; font-weight: 600;
+            color: var(--text-2); letter-spacing: .05em; text-transform: uppercase;
+            margin-bottom: 14px; display: flex; align-items: center; gap: 7px;
+        }
+
+        /* Radio cards (language) */
+        .radio-group { display: flex; gap: 8px; }
+        .radio-card {
+            flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+            padding: 10px 8px; border-radius: var(--radius-sm); cursor: pointer;
+            border: 1px solid var(--border-mid); background: var(--bg-input);
+            transition: all var(--transition); font-size: 0.8rem; color: var(--text-2);
+        }
+        .radio-card input { display: none; }
+        .radio-card:has(input:checked) {
+            border-color: var(--accent); background: var(--accent-dim); color: var(--accent);
+        }
+        .radio-card:hover:not(:has(input:checked)) { border-color: var(--border-hi); color: var(--text-1); }
+        .radio-icon { font-size: 1.3rem; }
+
+        /* Tone slider */
+        .tone-row { display: flex; align-items: center; gap: 12px; }
+        .tone-label { font-size: 0.72rem; color: var(--text-3); white-space: nowrap; }
+        .tone-options { display: flex; gap: 6px; flex: 1; }
+        .tone-opt {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            height: 36px; border-radius: var(--radius-sm);
+            border: 1px solid var(--border-mid); background: var(--bg-input);
+            cursor: pointer; transition: all var(--transition); font-size: 0.82rem; color: var(--text-2);
+        }
+        .tone-opt input { display: none; }
+        .tone-opt:has(input:checked) { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); font-weight: 600; }
+        .tone-opt:hover:not(:has(input:checked)) { border-color: var(--border-hi); color: var(--text-1); }
+
+        /* Checkbox grid */
+        .checkbox-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+        .check-card {
+            display: flex; align-items: center; gap: 9px;
+            padding: 9px 12px; border-radius: var(--radius-sm); cursor: pointer;
+            border: 1px solid var(--border); background: var(--bg-input);
+            transition: all var(--transition); font-size: 0.82rem; color: var(--text-2);
+            user-select: none;
+        }
+        .check-card input { display: none; }
+        .check-box {
+            width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0;
+            border: 1.5px solid var(--border-mid); background: transparent;
+            transition: all var(--transition); display: flex; align-items: center; justify-content: center;
+        }
+        .check-card:has(input:checked) {
+            border-color: rgba(79,142,247,.35); background: var(--accent-dim); color: var(--text-1);
+        }
+        .check-card:has(input:checked) .check-box {
+            background: var(--accent); border-color: var(--accent);
+        }
+        .check-card:has(input:checked) .check-box::after {
+            content: ''; display: block; width: 8px; height: 5px;
+            border-left: 2px solid #fff; border-bottom: 2px solid #fff;
+            transform: rotate(-45deg) translate(1px, -1px);
+        }
+        .check-card:hover:not(:has(input:checked)) { border-color: var(--border-mid); color: var(--text-1); }
+
+        /* Preview panel */
+        .preview-panel {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); overflow: hidden;
+            position: sticky; top: 76px;
+        }
+        .preview-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 18px; border-bottom: 1px solid var(--border);
+            background: var(--bg-panel);
+        }
+        .preview-head-title { font-size: 0.78rem; color: var(--text-2); font-weight: 500; display: flex; align-items: center; gap: 7px; }
+        .btn-icon {
+            width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+            border-radius: var(--radius-sm); border: 1px solid var(--border); background: transparent;
+            color: var(--text-2); cursor: pointer; transition: all var(--transition); font-size: 0.75rem;
+        }
+        .btn-icon:hover { border-color: var(--border-hi); color: var(--text-1); background: var(--bg-hover); }
+        .preview-panel textarea {
+            width: 100%; background: transparent; border: none; outline: none;
+            color: var(--text-2); font-family: var(--font-mono); font-size: 0.75rem;
+            line-height: 1.6; padding: 18px; resize: none;
+        }
+
+        /* Raw format badge */
+        .format-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 10px; border-radius: 20px;
+            font-size: 0.73rem; font-weight: 500;
+            background: var(--bg-input); border: 1px solid var(--border-mid);
+            color: var(--text-2); margin-bottom: 12px;
+        }
+
+        /* File selector */
+        .file-selector-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+
+        /* Footer */
+        footer {
+            padding: 20px 28px; border-top: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
+            font-size: 0.75rem; color: var(--text-3);
+        }
+        footer .sep { color: var(--border-hi); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 900px) {
+            .builder-grid { grid-template-columns: 1fr; }
+            .preview-panel { position: static; }
+            .form-grid { grid-template-columns: 1fr; }
+            .tabs { width: 100%; }
+        }
+    </style>
 </head>
 <body>
-    <div class="app-container">
-        <div class="ambient-bg">
-            <div class="orb orb-1"></div>
-            <div class="orb orb-2"></div>
-            <div class="orb orb-3"></div>
+<div class="ambient">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+</div>
+
+<div class="app">
+
+    <!-- HEADER -->
+    <header>
+        <div class="logo">
+            <svg class="logo-icon" viewBox="0 0 34 34" fill="none">
+                <circle cx="17" cy="17" r="15.5" stroke="url(#lg1)" stroke-width="2" fill="none"/>
+                <path d="M12 22V12l10 5-10 5z" fill="url(#lg1)"/>
+                <defs>
+                    <linearGradient id="lg1" x1="0" y1="0" x2="34" y2="34">
+                        <stop offset="0%" stop-color="#4f8ef7"/>
+                        <stop offset="100%" stop-color="#7c5ef5"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <span class="logo-word">Nova</span>
+            <span class="logo-badge">Admin</span>
+        </div>
+        <a href="/" class="btn-ghost">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+            Voz
+        </a>
+    </header>
+
+    <main>
+        <div class="page-header">
+            <div class="page-title">Configuración del Agente</div>
+            <div class="page-sub">Administra extensiones, inventario, prompts del sistema y monitorea la actividad</div>
         </div>
 
-        <header class="app-header">
-            <div class="logo-section">
-                <div class="logo-icon">
-                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="20" cy="20" r="18" stroke="url(#logo-grad)" stroke-width="2.5" fill="none"/>
-                        <path d="M14 26V14l12 6-12 6z" fill="url(#logo-grad)"/>
-                        <defs>
-                            <linearGradient id="logo-grad" x1="0" y1="0" x2="40" y2="40">
-                                <stop offset="0%" stop-color="#818cf8"/>
-                                <stop offset="100%" stop-color="#c084fc"/>
-                            </linearGradient>
-                        </defs>
-                    </svg>
-                </div>
-                <div class="logo-text">
-                    <h1>Asistente Virtual</h1>
-                    <span class="logo-subtitle">Panel de Administración</span>
-                </div>
-            </div>
-            <div class="header-actions">
-                <a href="/" class="btn-admin" id="btnBack">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                    Voz
-                </a>
-            </div>
-        </header>
+        <!-- TABS -->
+        <div class="tabs" id="adminTabs">
+            <button class="tab active" data-tab="extensions">📞 Extensiones</button>
+            <button class="tab" data-tab="inventory">📦 Inventario</button>
+            <button class="tab" data-tab="prompts">🧠 System Prompt</button>
+            <button class="tab" data-tab="tools">⚙️ Herramientas</button>
+            <button class="tab" data-tab="sessions">📊 Sesiones</button>
+            <button class="tab" data-tab="logs">📝 Logs</button>
+        </div>
 
-        <main class="admin-container">
-            <h2 class="admin-title">Configuración del Agente</h2>
-            <p class="admin-subtitle">Administra extensiones, inventario, prompts del sistema y monitorea la actividad</p>
-
-            <div class="admin-tabs" id="adminTabs">
-                <button class="admin-tab active" data-tab="extensions">📞 Extensiones</button>
-                <button class="admin-tab" data-tab="inventory">📦 Inventario</button>
-                <button class="admin-tab" data-tab="prompts">🧠 System Prompt</button>
-                <button class="admin-tab" data-tab="tools">⚙️ Herramientas</button>
-                <button class="admin-tab" data-tab="sessions">📊 Sesiones</button>
-                <button class="admin-tab" data-tab="logs">📝 Logs</button>
+        <!-- ── EXTENSIONS ── -->
+        <div class="panel active" id="panel-extensions">
+            <div class="card">
+                <div class="card-title">Agregar Extensión</div>
+                <div class="card-sub">Registra un nuevo empleado o departamento en el directorio</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Nombre completo</label>
+                        <input type="text" id="extName" placeholder="Luis Alfonso García">
+                    </div>
+                    <div class="form-group">
+                        <label>Extensión</label>
+                        <input type="text" id="extNumber" placeholder="104">
+                    </div>
+                    <div class="form-group">
+                        <label>Departamento</label>
+                        <input type="text" id="extDept" placeholder="Ventas">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="extEmail" placeholder="luis@empresa.com">
+                    </div>
+                </div>
+                <button class="btn-primary" id="btnAddExtension">+ Agregar Extensión</button>
             </div>
 
-            <!-- Extensions Panel -->
-            <div class="admin-panel active" id="panel-extensions">
-                <div class="admin-card">
-                    <h3>Agregar Extensión</h3>
-                    <form id="formAddExtension" class="form-grid">
-                        <div class="form-group">
-                            <label for="extName">Nombre</label>
-                            <input type="text" id="extName" placeholder="Luis Alfonso García" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="extNumber">Extensión</label>
-                            <input type="text" id="extNumber" placeholder="104" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="extDept">Departamento</label>
-                            <input type="text" id="extDept" placeholder="Ventas">
-                        </div>
-                        <div class="form-group">
-                            <label for="extEmail">Email</label>
-                            <input type="email" id="extEmail" placeholder="luis@empresa.com">
-                        </div>
-                    </form>
-                    <button class="btn-primary" id="btnAddExtension">Agregar Extensión</button>
-                </div>
+            <div class="card">
+                <div class="card-title">Directorio de Extensiones</div>
+                <table class="data-table" id="extensionsTable">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th><th>Ext.</th><th>Departamento</th><th>Email</th><th>Estado</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="extensionsBody">
+                        <tr><td colspan="6" class="empty-state">Cargando extensiones…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-                <div class="admin-card">
-                    <h3>Directorio de Extensiones</h3>
-                    <table class="data-table" id="extensionsTable">
-                        <thead>
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Extensión</th>
-                                <th>Departamento</th>
-                                <th>Email</th>
-                                <th>Estado</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="extensionsBody">
-                            <tr><td colspan="6" class="empty-state">Cargando...</td></tr>
-                        </tbody>
-                    </table>
+        <!-- ── INVENTORY ── -->
+        <div class="panel" id="panel-inventory">
+            <div class="card">
+                <div class="card-title">Agregar Producto</div>
+                <div class="card-sub">Añade un producto al catálogo consultable por el agente</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Nombre del producto</label>
+                        <input type="text" id="prodName" placeholder="Laptop ProBook">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio (MXN)</label>
+                        <input type="number" id="prodPrice" step="0.01" placeholder="18500.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Stock</label>
+                        <input type="number" id="prodStock" placeholder="15">
+                    </div>
+                    <div class="form-group">
+                        <label>Categoría</label>
+                        <input type="text" id="prodCategory" placeholder="Computadoras">
+                    </div>
+                    <div class="form-group" style="grid-column:1/-1">
+                        <label>Descripción</label>
+                        <input type="text" id="prodDesc" placeholder="Laptop empresarial 15.6 pulgadas…">
+                    </div>
                 </div>
+                <button class="btn-primary" id="btnAddProduct">+ Agregar Producto</button>
             </div>
 
-            <!-- Inventory Panel -->
-            <div class="admin-panel" id="panel-inventory">
-                <div class="admin-card">
-                    <h3>Agregar Producto</h3>
-                    <form id="formAddProduct" class="form-grid">
-                        <div class="form-group">
-                            <label for="prodName">Producto</label>
-                            <input type="text" id="prodName" placeholder="Laptop ProBook" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="prodPrice">Precio (MXN)</label>
-                            <input type="number" id="prodPrice" step="0.01" placeholder="18500.00" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="prodStock">Stock</label>
-                            <input type="number" id="prodStock" placeholder="15" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="prodCategory">Categoría</label>
-                            <input type="text" id="prodCategory" placeholder="Computadoras">
-                        </div>
-                        <div class="form-group" style="grid-column: 1 / -1;">
-                            <label for="prodDesc">Descripción</label>
-                            <input type="text" id="prodDesc" placeholder="Laptop empresarial 15.6 pulgadas...">
-                        </div>
-                    </form>
-                    <button class="btn-primary" id="btnAddProduct">Agregar Producto</button>
-                </div>
+            <div class="card">
+                <div class="card-title">Inventario de Productos</div>
+                <table class="data-table" id="inventoryTable">
+                    <thead>
+                        <tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Stock</th><th></th></tr>
+                    </thead>
+                    <tbody id="inventoryBody">
+                        <tr><td colspan="5" class="empty-state">Cargando inventario…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-                <div class="admin-card">
-                    <h3>Inventario de Productos</h3>
-                    <table class="data-table" id="inventoryTable">
-                        <thead>
-                            <tr>
-                                <th>Producto</th>
-                                <th>Categoría</th>
-                                <th>Precio</th>
-                                <th>Stock</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventoryBody">
-                            <tr><td colspan="5" class="empty-state">Cargando...</td></tr>
-                        </tbody>
-                    </table>
+        <!-- ── PROMPTS ── -->
+        <div class="panel" id="panel-prompts">
+
+            <!-- Source bar -->
+            <div class="source-bar">
+                <span class="source-label">Fuente</span>
+                <span class="source-badge" id="promptStatusBadge">📂 Archivos del sistema</span>
+                <div class="spacer"></div>
+                <div class="toggle-wrap">
+                    <label class="toggle">
+                        <input type="checkbox" id="useCustomPrompt">
+                        <span class="toggle-track"></span>
+                    </label>
+                    <span class="toggle-desc">Prompt personalizado</span>
                 </div>
             </div>
 
-            <!-- Prompts Panel -->
-            <div class="admin-panel" id="panel-prompts">
-                <div class="admin-card">
-                    <h3>System Prompt del Agente</h3>
-                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">
-                        Edita el prompt en Markdown para personalizar la personalidad, capacidades y comportamiento del Asistente Virtual.
-                    </p>
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <label for="promptSelect">Seleccionar Prompt</label>
-                        <div style="display: flex; gap: 8px;">
-                            <select id="promptSelect" style="flex: 1;"></select>
-                            <button class="btn-delete" id="btnDeletePrompt" title="Eliminar prompt de BD" style="padding: 0 16px; border-radius: 6px; background: rgba(255, 68, 68, 0.1); color: #ff4444; border: 1px solid rgba(255, 68, 68, 0.3);">Eliminar</button>
+            <!-- Mode tabs -->
+            <div class="mode-tabs" id="promptModeTabs">
+                <button class="mode-tab active" data-mode="builder">🎨 Constructor Visual</button>
+                <button class="mode-tab" data-mode="raw">📝 Texto / JSON</button>
+                <button class="mode-tab" data-mode="files">📂 Archivos del sistema</button>
+            </div>
+
+            <!-- ── BUILDER ── -->
+            <div class="mode-panel active" id="mode-builder">
+                <div class="builder-grid">
+
+                    <!-- Form column -->
+                    <div class="card builder-form">
+
+                        <!-- Identidad -->
+                        <div class="section">
+                            <div class="section-title">🤖 Identidad del Agente</div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Nombre del Agente</label>
+                                    <input type="text" id="b-name" placeholder="Nova">
+                                </div>
+                                <div class="form-group">
+                                    <label>Empresa</label>
+                                    <input type="text" id="b-company" placeholder="Tech Solutions">
+                                </div>
+                                <div class="form-group" style="grid-column:1/-1">
+                                    <label>Rol / Descripción</label>
+                                    <input type="text" id="b-role" placeholder="Asistente virtual de atención telefónica">
+                                </div>
+                                <div class="form-group" style="grid-column:1/-1">
+                                    <label>Saludo Inicial</label>
+                                    <input type="text" id="b-greeting" placeholder="Hola, soy Nova, ¿en qué puedo ayudarle?">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Idioma y Base de Datos -->
+                        <div class="section">
+                            <div class="section-title">🌐 Idioma de Respuesta</div>
+                            <div class="radio-group">
+                                <label class="radio-card" title="El agente responde siempre en español, sin importar el idioma del usuario.">
+                                    <input type="radio" name="b-language" value="es" checked>
+                                    <span class="radio-icon">🇲🇽</span><span>Español</span>
+                                </label>
+                                <label class="radio-card" title="El agente responde siempre en inglés, sin importar el idioma del usuario.">
+                                    <input type="radio" name="b-language" value="en">
+                                    <span class="radio-icon">🇺🇸</span><span>English</span>
+                                </label>
+                                <label class="radio-card" title="El agente detecta el idioma del usuario y responde en el mismo. Soporta español e inglés.">
+                                    <input type="radio" name="b-language" value="bi">
+                                    <span class="radio-icon">🌐</span><span>Bilingüe</span>
+                                </label>
+                            </div>
+                        </div>
+
+
+                        <!-- Tono -->
+                        <div class="section">
+                            <div class="section-title">🎭 Tono</div>
+                            <div class="tone-row">
+                                <span class="tone-label">Muy formal</span>
+                                <div class="tone-options">
+                                    <label class="tone-opt"><input type="radio" name="b-tone" value="very_formal"><span>1</span></label>
+                                    <label class="tone-opt"><input type="radio" name="b-tone" value="formal"><span>2</span></label>
+                                    <label class="tone-opt"><input type="radio" name="b-tone" value="friendly" checked><span>3</span></label>
+                                    <label class="tone-opt"><input type="radio" name="b-tone" value="casual"><span>4</span></label>
+                                    <label class="tone-opt"><input type="radio" name="b-tone" value="very_casual"><span>5</span></label>
+                                </div>
+                                <span class="tone-label">Muy casual</span>
+                            </div>
+                        </div>
+
+                        <!-- Personalidad -->
+                        <div class="section">
+                            <div class="section-title">✨ Rasgos de Personalidad</div>
+                            <div class="checkbox-grid">
+                                <label class="check-card" title="Hace que el agente responda con calidez y empatía, usando un tono amigable y cercano."><input type="checkbox" value="warm"><span class="check-box"></span>🤝 Cálido / Amable</label>
+                                <label class="check-card" title="El agente mantiene formalidad en todo momento. Sin modismos ni lenguaje coloquial."><input type="checkbox" value="formal"><span class="check-box"></span>🎩 Formal</label>
+                                <label class="check-card" title="Las respuestas son breves y directas. No da explicaciones largas a menos que se le pida." ><input type="checkbox" value="concise" checked><span class="check-box"></span>⚡ Conciso</label>
+                                <label class="check-card" title="El agente da respuestas detalladas y completas, explicando cada paso o dato relevante."><input type="checkbox" value="detailed"><span class="check-box"></span>📋 Detallado</label>
+                                <label class="check-card" title="El agente demuestra empatía con el usuario, reconociendo su situación antes de responder."><input type="checkbox" value="empathetic"><span class="check-box"></span>💙 Empático</label>
+                                <label class="check-card" title="El agente repite la información las veces necesarias sin mostrar impaciencia."><input type="checkbox" value="patient"><span class="check-box"></span>🕐 Paciente</label>
+                                <label class="check-card" title="El agente anticipa las necesidades del usuario y ofrece opciones antes de que las pida."><input type="checkbox" value="proactive"><span class="check-box"></span>🚀 Proactivo</label>
+                                <label class="check-card" title="Antes de transferir o realizar una acción, el agente pide confirmación explícita al usuario."><input type="checkbox" value="confirm" checked><span class="check-box"></span>✅ Confirma acciones</label>
+                                <label class="check-card" title="El agente siempre repite en voz alta el nombre y extensión antes de transferir, para evitar errores."><input type="checkbox" value="repeat_before_transfer"><span class="check-box"></span>🔁 Repite antes de transferir</label>
+                                <label class="check-card" title="Si hay múltiples resultados en la búsqueda, los lista todos y pregunta al usuario cuál desea."><input type="checkbox" value="list_options"><span class="check-box"></span>📋 Lista opciones múltiples</label>
+                            </div>
+                        </div>
+
+                        <!-- Capacidades -->
+                        <div class="section">
+                            <div class="section-title">🛠️ Capacidades</div>
+                            <div class="checkbox-grid">
+                                <label class="check-card" title="Permite al agente buscar en el directorio y conectar la llamada con la extensión correcta."><input type="checkbox" value="transfer" checked><span class="check-box"></span>📞 Transferir llamadas</label>
+                                <label class="check-card" title="El agente puede consultar quién está en qué departamento y su número de extensión."><input type="checkbox" value="directory" checked><span class="check-box"></span>📒 Consultar directorio</label>
+                                <label class="check-card" title="El agente puede buscar productos, precios y disponibilidad en la base de datos de inventario."><input type="checkbox" value="inventory" checked><span class="check-box"></span>📦 Consultar inventario</label>
+                                <label class="check-card" title="Si la persona solicitada no está disponible, el agente toma un mensaje para transmitirlo después."><input type="checkbox" value="messages" checked><span class="check-box"></span>✉️ Tomar mensajes</label>
+                                <label class="check-card" title="El agente puede responder preguntas generales sobre la empresa: horarios, ubicación, servicios."><input type="checkbox" value="general"><span class="check-box"></span>ℹ️ Información general</label>
+                                <label class="check-card" title="El agente puede ayudar a agendar citas o reuniones con las personas disponibles."><input type="checkbox" value="schedule"><span class="check-box"></span>📅 Agendar citas</label>
+                                <label class="check-card" title="El agente puede guiar al usuario en pasos básicos de soporte técnico antes de transferir."><input type="checkbox" value="support"><span class="check-box"></span>🔧 Soporte técnico</label>
+                                <label class="check-card" title="El agente puede responder FAQs predefinidas o consultar una base de conocimiento."><input type="checkbox" value="faq"><span class="check-box"></span>❓ Preguntas frecuentes</label>
+                                <label class="check-card" title="El agente informa sobre estatus de pedidos o solicitudes si tiene acceso al sistema."><input type="checkbox" value="order_status"><span class="check-box"></span>📦 Estado de pedidos</label>
+                            </div>
+                        </div>
+
+                        <!-- Seguridad -->
+                        <div class="section">
+                            <div class="section-title">🔒 Reglas de Seguridad</div>
+                            <div class="checkbox-grid">
+                                <label class="check-card" title="El agente no puede salirse de su personaje. Si alguien pide que actúe diferente, rechazará amablemente."><input type="checkbox" value="character_lock" checked><span class="check-box"></span>🎭 Bloqueo de personaje</label>
+                                <label class="check-card" title="El agente NO inventará extensiones, nombres o productos que no existan en la base de datos."><input type="checkbox" value="no_hallucinations" checked><span class="check-box"></span>🚫 Sin alucinaciones</label>
+                                <label class="check-card" title="Antes de transferir, el agente verifica que el departamento encontrado coincida con lo solicitado."><input type="checkbox" value="cross_validation"><span class="check-box"></span>🔍 Validar departamento</label>
+                                <label class="check-card" title="Si la búsqueda falla, el agente intenta con variaciones del término e informa al usuario si no encuentra nada."><input type="checkbox" value="synonym_search"><span class="check-box"></span>🔤 Búsqueda flexible</label>
+                                <label class="check-card" title="El agente nunca comparte datos personales de empleados (email, teléfono personal) con el usuario."><input type="checkbox" value="no_personal_data"><span class="check-box"></span>🔐 No divulgar datos personales</label>
+                                <label class="check-card" title="El agente finaliza la llamada de forma amigable si detecta intención de abuso o lenguaje inapropiado."><input type="checkbox" value="abuse_protection"><span class="check-box"></span>🛡️ Protección contra abuso</label>
+                            </div>
+                        </div>
+
+                        <!-- Extra -->
+                        <div class="section" style="border-bottom:none;padding-bottom:0">
+                            <div class="section-title">📌 Instrucciones Adicionales</div>
+                            <div class="form-group">
+                                <textarea id="b-custom-instructions" rows="4"
+                                    placeholder="Escribe reglas o comportamientos adicionales que el agente debe seguir…"></textarea>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary btn-full" id="btnSaveBuilder" style="margin-top:22px">
+                            💾 Guardar y Activar Prompt
+                        </button>
+                    </div>
+
+                    <!-- Preview column -->
+                    <div class="preview-panel">
+                        <div class="preview-head">
+                            <span class="preview-head-title">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                Vista Previa del Prompt
+                            </span>
+                            <button class="btn-icon" id="btnCopyPreview" title="Copiar">📋</button>
+                        </div>
+                        <textarea id="promptPreview" readonly rows="40"
+                            placeholder="El prompt generado aparecerá aquí en tiempo real…"></textarea>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ── RAW ── -->
+            <div class="mode-panel" id="mode-raw">
+                <div class="card">
+                    <div class="card-title">Pegar Texto o JSON</div>
+                    <div class="card-sub">
+                        Pega directamente el texto del prompt, o un JSON con la clave <code style="font-family:var(--font-mono);font-size:0.78rem;color:var(--cyan);background:rgba(103,232,249,.08);padding:1px 6px;border-radius:4px">system_prompt</code>.
+                        El sistema detecta el formato automáticamente.
+                    </div>
+                    <div class="format-badge" id="rawFormatBadge">📄 Detectando formato…</div>
+                    <div class="form-group">
+                        <textarea class="mono" id="rawPromptInput" rows="24"
+                            placeholder='Pega aquí tu prompt en texto plano, YAML o JSON…
+
+Ejemplo JSON:
+{"system_prompt": "Eres Nova, asistente de Tech Solutions…"}
+
+Ejemplo texto plano:
+Eres Nova, asistente de Tech Solutions…'></textarea>
+                    </div>
+                    <button class="btn-primary btn-full" id="btnActivateRaw" style="margin-top:14px">
+                        🚀 Activar este Prompt
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── FILES ── -->
+            <div class="mode-panel" id="mode-files">
+                <div class="card">
+                    <div class="file-selector-row">
+                        <div>
+                            <div class="card-title" style="margin-bottom:2px">Archivos del Sistema</div>
+                            <div class="card-sub" style="margin-bottom:0">
+                                Edita los archivos <code style="font-family:var(--font-mono);font-size:0.75rem;color:var(--cyan)">.yaml</code> /
+                                <code style="font-family:var(--font-mono);font-size:0.75rem;color:var(--cyan)">.md</code> directamente.
+                                Los cambios se guardan en ambos formatos.
+                            </div>
+                        </div>
+                        <div class="form-group" style="width:200px;margin:0">
+                            <select id="promptSelect"></select>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label for="promptEditor">Contenido (Markdown)</label>
-                        <textarea id="promptEditor" rows="20" placeholder="Escribe el system prompt aquí..."></textarea>
+                        <textarea class="mono" id="promptEditor" rows="22"
+                            placeholder="Cargando contenido…"></textarea>
                     </div>
-                    <button class="btn-primary" id="btnSavePrompt" style="margin-top: 12px;">Guardar Prompt</button>
-                </div>
-            </div>
-
-            <!-- Tools Panel -->
-            <div class="admin-panel" id="panel-tools">
-                <div class="admin-card">
-                    <h3>Herramientas de Function Calling</h3>
-                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">
-                        Configuración JSON de las funciones que la IA puede ejecutar durante una llamada. Cada herramienta define nombre, descripción y parámetros.
-                    </p>
-                    <div class="form-group">
-                        <label for="toolsEditor">Configuración JSON</label>
-                        <textarea id="toolsEditor" rows="25" style="font-family: 'Courier New', monospace; font-size: 0.8rem;"></textarea>
+                    <div style="display:flex;gap:10px;margin-top:14px">
+                        <button class="btn-primary" id="btnSavePrompt" style="flex:1">💾 Guardar Archivos</button>
+                        <button class="btn-secondary" id="btnUseFilePrompt">✅ Usar este prompt</button>
                     </div>
-                    <button class="btn-primary" id="btnSaveTools" style="margin-top: 12px;">Guardar Herramientas</button>
                 </div>
             </div>
+        </div>
 
-            <!-- Sessions Panel -->
-            <div class="admin-panel" id="panel-sessions">
-                <div class="admin-card">
-                    <h3>Sesiones Activas</h3>
-                    <button class="btn-primary" id="btnRefreshSessions" style="margin-bottom: 16px; font-size: 0.8rem; padding: 8px 16px;">Actualizar</button>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Session ID</th>
-                                <th>Fuente</th>
-                                <th>Duración</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody id="sessionsBody">
-                            <tr><td colspan="4" class="empty-state">Sin sesiones activas</td></tr>
-                        </tbody>
-                    </table>
+        <!-- ── TOOLS ── -->
+        <div class="panel" id="panel-tools">
+            <div class="card">
+                <div class="card-title">Herramientas de Function Calling</div>
+                <div class="card-sub">
+                    Configuración JSON de las funciones que la IA puede ejecutar durante una llamada.
+                    Cada herramienta define nombre, descripción y parámetros.
                 </div>
-            </div>
-
-            <!-- Logs Panel -->
-            <div class="admin-panel" id="panel-logs">
-                <div class="admin-card">
-                    <h3>Historial de Llamadas</h3>
-                    <button class="btn-primary" id="btnRefreshLogs" style="margin-bottom: 16px; font-size: 0.8rem; padding: 8px 16px;">Actualizar</button>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Fuente</th>
-                                <th>Duración</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="logsBody">
-                            <tr><td colspan="4" class="empty-state">Sin registros</td></tr>
-                        </tbody>
-                    </table>
+                <div class="form-group">
+                    <label>Configuración JSON</label>
+                    <textarea class="mono" id="toolsEditor" rows="25"></textarea>
                 </div>
+                <button class="btn-primary" id="btnSaveTools" style="margin-top:14px">💾 Guardar Herramientas</button>
             </div>
-        </main>
+        </div>
 
-        <footer class="app-footer">
-            <span>Asistente Virtual v1.0</span>
-            <span class="separator">·</span>
-            <span>Panel de Administración</span>
-        </footer>
-    </div>
+        <!-- ── SESSIONS ── -->
+        <div class="panel" id="panel-sessions">
+            <div class="card">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+                    <div class="card-title" style="margin-bottom:0">Sesiones Activas</div>
+                    <button class="btn-ghost btn-sm" id="btnRefreshSessions">↻ Actualizar</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Session ID</th><th>Fuente</th><th>Duración</th><th>Estado</th></tr>
+                    </thead>
+                    <tbody id="sessionsBody">
+                        <tr><td colspan="4" class="empty-state">Sin sesiones activas</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-    <script src="/static/js/admin.js"></script>
+        <!-- ── LOGS ── -->
+        <div class="panel" id="panel-logs">
+            <div class="card">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+                    <div class="card-title" style="margin-bottom:0">Historial de Llamadas</div>
+                    <button class="btn-ghost btn-sm" id="btnRefreshLogs">↻ Actualizar</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Fecha</th><th>Fuente</th><th>Duración</th><th>Acciones</th></tr>
+                    </thead>
+                    <tbody id="logsBody">
+                        <tr><td colspan="4" class="empty-state">Sin registros</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <footer>
+        <span>Nova Voice Agent v1.0</span>
+        <span class="sep">·</span>
+        <span>Panel de Administración</span>
+    </footer>
+</div>
+
+<script>
+    /* ── TAB SWITCHING ── */
+    document.getElementById('adminTabs').addEventListener('click', e => {
+        const tab = e.target.closest('.tab');
+        if (!tab) return;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tab)?.classList.add('active');
+    });
+
+    /* ── MODE TABS ── */
+    document.getElementById('promptModeTabs').addEventListener('click', e => {
+        const btn = e.target.closest('.mode-tab');
+        if (!btn) return;
+        document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('mode-' + btn.dataset.mode)?.classList.add('active');
+    });
+
+    /* ── COPY PREVIEW ── */
+    document.getElementById('btnCopyPreview')?.addEventListener('click', () => {
+        const val = document.getElementById('promptPreview').value;
+        navigator.clipboard.writeText(val).then(() => {
+            const btn = document.getElementById('btnCopyPreview');
+            btn.textContent = '✅';
+            setTimeout(() => btn.textContent = '📋', 1500);
+        });
+    });
+
+    /* ── RAW FORMAT DETECTION ── */
+    document.getElementById('rawPromptInput')?.addEventListener('input', e => {
+        const v = e.target.value.trim();
+        const badge = document.getElementById('rawFormatBadge');
+        if (!v) { badge.textContent = '📄 Detectando formato…'; return; }
+        try { JSON.parse(v); badge.textContent = '🔷 JSON detectado'; }
+        catch { badge.textContent = v.startsWith('---') ? '📋 YAML detectado' : '📄 Texto plano'; }
+    });
+</script>
+
+<!-- Drop-in replacement for /static/js/admin.js -->
+<script src="/static/js/neural-bg.js"></script>
+<script src="/static/js/admin.js"></script>
 </body>
 </html>

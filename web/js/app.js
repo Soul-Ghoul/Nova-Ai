@@ -23,7 +23,13 @@ class NovaVoiceApp {
         this.waveformCanvas = document.getElementById('waveformCanvas');
         this.canvasCtx = this.waveformCanvas.getContext('2d');
 
+        this._turnIndicator = document.getElementById('turnIndicator');
+        this._turnDot       = document.getElementById('turnDot');
+        this._turnText      = document.getElementById('turnText');
+        this._aiSpeaking    = false;
+
         this.init();
+        this._loadPromptInfo();
     }
 
     init() {
@@ -98,10 +104,8 @@ class NovaVoiceApp {
         this.ws.onmessage = (event) => {
             if (event.data instanceof ArrayBuffer) {
                 this.playbackQueue.push(event.data);
-                this.logEvent('ai', `Audio recibido (${event.data.byteLength} bytes)`);
-                if (!this.isPlaying) {
-                    this.playNextChunk();
-                }
+                if (!this._aiSpeaking) this._setTurn('ai');
+                if (!this.isPlaying) this.playNextChunk();
             }
         };
 
@@ -120,6 +124,7 @@ class NovaVoiceApp {
     async playNextChunk() {
         if (this.playbackQueue.length === 0) {
             this.isPlaying = false;
+            if (this._aiSpeaking) this._setTurn('user');
             return;
         }
 
@@ -148,6 +153,47 @@ class NovaVoiceApp {
             this.isPlaying = false;
             this.playNextChunk();
         }
+    }
+
+    _setTurn(who) {
+        if (!this._turnIndicator) return;
+        this._aiSpeaking = (who === 'ai');
+        this._turnIndicator.style.display = 'flex';
+        if (who === 'ai') {
+            this._turnIndicator.style.background = 'rgba(79,142,247,.08)';
+            this._turnIndicator.style.borderColor = 'rgba(79,142,247,.3)';
+            this._turnIndicator.style.color = '#4f8ef7';
+            this._turnDot.style.background = '#4f8ef7';
+            this._turnDot.style.boxShadow = '0 0 8px #4f8ef7';
+            this._turnText.textContent = 'Nova está hablando…';
+            this.logEvent('ai', '▶ Nova está hablando');
+        } else {
+            this._turnIndicator.style.background = 'rgba(52,211,153,.08)';
+            this._turnIndicator.style.borderColor = 'rgba(52,211,153,.35)';
+            this._turnIndicator.style.color = '#34d399';
+            this._turnDot.style.background = '#34d399';
+            this._turnDot.style.boxShadow = '0 0 8px #34d399';
+            this._turnText.textContent = '🎤 Tu turno — habla ahora';
+            this.logEvent('system', '🎤 Tu turno');
+        }
+    }
+
+    async _loadPromptInfo() {
+        try {
+            const res  = await fetch('/api/admin/prompt-config/active');
+            const data = await res.json();
+            const card   = document.getElementById('promptInfoCard');
+            const pill   = document.getElementById('promptModePill');
+            const snip   = document.getElementById('promptSnippet');
+            if (!card) return;
+            card.style.display = 'block';
+            const cfg = await fetch('/api/admin/prompt-config').then(r => r.json()).catch(() => ({}));
+            const mode = cfg.use_custom
+                ? (cfg.mode === 'builder' ? '🎨 Constructor Visual' : '📝 Texto Personalizado')
+                : '📂 Archivos del sistema';
+            pill.textContent = mode;
+            snip.textContent = data.prompt_preview || 'Sin contenido';
+        } catch {}
     }
 
     stopRecording() {
