@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nova — Panel de Administración</title>
+    <link rel="icon" href="data:,">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -483,6 +484,130 @@
             .tk-kpi-row { grid-template-columns: repeat(2, 1fr); }
             .tk-day-row { grid-template-columns: 64px 1fr 50px; }
         }
+
+        /* ── AGENT PRESETS ── */
+        .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .agent-card {
+            position: relative; padding: 18px 16px; border-radius: var(--radius-lg);
+            border: 1px solid var(--border); background: var(--bg-card);
+            cursor: pointer; transition: all var(--transition);
+            display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+        }
+        .agent-card:hover { border-color: var(--border-hi); transform: translateY(-2px); box-shadow: var(--shadow-hi); }
+        .agent-card.selected {
+            border-color: var(--accent); background: var(--accent-dim);
+            box-shadow: 0 0 24px var(--accent-glow), 0 0 0 1px var(--accent);
+        }
+        .agent-card-icon { font-size: 2rem; line-height: 1; }
+        .agent-card-name { font-family: var(--font-display); font-weight: 600; font-size: 0.88rem; color: var(--text-1); }
+        .agent-card-desc { font-size: 0.72rem; color: var(--text-3); line-height: 1.4; }
+        .agent-card-badge {
+            position: absolute; top: 8px; right: 8px; font-size: 0.6rem; font-weight: 600;
+            letter-spacing: .06em; text-transform: uppercase; padding: 2px 7px;
+            border-radius: 20px; background: rgba(79,142,247,.12); color: var(--accent);
+            border: 1px solid rgba(79,142,247,.25);
+        }
+
+        .agent-config { display: none; animation: fadeUp .25s ease; }
+        .agent-config.active { display: block; }
+        .agent-config-header {
+            display: flex; align-items: center; gap: 12px; padding: 16px 0 12px;
+            border-bottom: 1px solid var(--border); margin-bottom: 16px;
+        }
+        .agent-config-icon { font-size: 1.6rem; }
+        .agent-config-title { font-family: var(--font-display); font-weight: 700; font-size: 1rem; }
+        .agent-config-sub { font-size: 0.78rem; color: var(--text-2); }
+
+        .trait-grid { display: flex; flex-direction: column; gap: 14px; }
+        .trait-row {
+            display: grid; grid-template-columns: 140px 1fr 42px; align-items: center; gap: 12px;
+            padding: 10px 14px; border-radius: var(--radius-sm);
+            background: var(--bg-input); border: 1px solid var(--border);
+        }
+        .trait-label { font-size: 0.82rem; color: var(--text-2); font-weight: 500; display: flex; align-items: center; gap: 6px; }
+        .trait-value {
+            font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700;
+            color: var(--accent); text-align: center; min-width: 28px;
+        }
+        .trait-slider {
+            -webkit-appearance: none; appearance: none; width: 100%; height: 6px;
+            border-radius: 3px; background: var(--bg-base); outline: none;
+            transition: background var(--transition);
+        }
+        .trait-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; width: 18px; height: 18px;
+            border-radius: 50%; background: var(--accent); cursor: pointer;
+            box-shadow: 0 0 8px var(--accent-glow); transition: all var(--transition);
+        }
+        .trait-slider::-webkit-slider-thumb:hover { transform: scale(1.2); box-shadow: 0 0 16px var(--accent-glow); }
+        .trait-slider::-moz-range-thumb {
+            width: 18px; height: 18px; border-radius: 50%; background: var(--accent);
+            cursor: pointer; border: none; box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        .trait-slider.intensity-low::-webkit-slider-thumb { background: #67e8e9; box-shadow: 0 0 8px rgba(103,232,233,.4); }
+        .trait-slider.intensity-mid::-webkit-slider-thumb { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+        .trait-slider.intensity-high::-webkit-slider-thumb { background: #fbbf24; box-shadow: 0 0 10px rgba(251,191,36,.5); }
+        .trait-slider.intensity-max::-webkit-slider-thumb { background: #f87171; box-shadow: 0 0 14px rgba(248,113,113,.6); }
+        .trait-slider.intensity-low::-moz-range-thumb { background: #67e8e9; box-shadow: 0 0 8px rgba(103,232,233,.4); }
+        .trait-slider.intensity-mid::-moz-range-thumb { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+        .trait-slider.intensity-high::-moz-range-thumb { background: #fbbf24; box-shadow: 0 0 10px rgba(251,191,36,.5); }
+        .trait-slider.intensity-max::-moz-range-thumb { background: #f87171; box-shadow: 0 0 14px rgba(248,113,113,.6); }
+        .trait-value.intensity-low  { color: #67e8e9; }
+        .trait-value.intensity-mid  { color: var(--accent); }
+        .trait-value.intensity-high { color: #fbbf24; }
+        .trait-value.intensity-max  { color: #f87171; }
+        .trait-level {
+            font-size: 0.6rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+            padding: 1px 6px; border-radius: 10px; margin-left: 4px;
+        }
+        .trait-level.intensity-low  { background: rgba(103,232,233,.1); color: #67e8e9; }
+        .trait-level.intensity-mid  { background: rgba(79,142,247,.1); color: var(--accent); }
+        .trait-level.intensity-high { background: rgba(251,191,36,.1); color: #fbbf24; }
+        .trait-level.intensity-max  { background: rgba(248,113,113,.12); color: #f87171; }
+
+        .agent-identity { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+        .agent-identity .form-group { margin: 0; }
+        .agent-identity .form-group.full { grid-column: 1 / -1; }
+        .agent-identity label { font-size: 0.75rem; color: var(--text-2); margin-bottom: 4px; display: block; }
+        .agent-identity input, .agent-identity textarea {
+            width: 100%; padding: 8px 10px; border-radius: var(--radius-sm);
+            background: var(--bg-input); border: 1px solid var(--border); color: var(--text-1);
+            font-family: var(--font-body); font-size: 0.82rem;
+        }
+        .agent-identity input:focus, .agent-identity textarea:focus {
+            outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        .agent-profile-name {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+            padding: 10px 14px; border-radius: var(--radius-sm);
+            background: var(--accent-dim); border: 1px solid rgba(79,142,247,.25);
+        }
+        .agent-profile-name label { font-size: 0.78rem; color: var(--accent); font-weight: 600; white-space: nowrap; }
+        .agent-profile-name input {
+            flex: 1; padding: 6px 10px; border-radius: var(--radius-sm);
+            background: var(--bg-input); border: 1px solid var(--border); color: var(--text-1);
+            font-family: var(--font-body); font-size: 0.82rem;
+        }
+        .agent-profile-name input:focus { outline: none; border-color: var(--accent); }
+
+        .agent-card.custom { border-style: dashed; }
+        .agent-card.custom .agent-card-badge { background: rgba(52,211,153,.12); color: #34d399; border-color: rgba(52,211,153,.25); }
+        .agent-card-delete {
+            position: absolute; top: 6px; left: 6px; width: 20px; height: 20px;
+            border-radius: 50%; border: none; background: rgba(248,113,113,.15);
+            color: #f87171; font-size: 0.7rem; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; opacity: 0; transition: opacity .2s;
+        }
+        .agent-card:hover .agent-card-delete { opacity: 1; }
+        .agent-card-delete:hover { background: rgba(248,113,113,.3); }
+
+        @media (max-width: 900px) {
+            .agent-grid { grid-template-columns: repeat(2, 1fr); }
+            .trait-row { grid-template-columns: 110px 1fr 36px; }
+            .agent-identity { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -622,23 +747,15 @@
 
             <!-- Source bar -->
             <div class="source-bar">
-                <span class="source-label">Fuente</span>
-                <span class="source-badge" id="promptStatusBadge">📂 Archivos del sistema</span>
-                <div class="spacer"></div>
-                <div class="toggle-wrap">
-                    <label class="toggle">
-                        <input type="checkbox" id="useCustomPrompt">
-                        <span class="toggle-track"></span>
-                    </label>
-                    <span class="toggle-desc">Prompt personalizado</span>
-                </div>
+                <span class="source-label">FUENTE ACTIVA</span>
+                <span class="source-badge" id="promptStatusBadge">⏳ Cargando...</span>
             </div>
 
             <!-- Mode tabs -->
             <div class="mode-tabs" id="promptModeTabs">
                 <button class="mode-tab active" data-mode="builder">🎨 Constructor Visual</button>
                 <button class="mode-tab" data-mode="raw">📝 Texto / JSON</button>
-                <button class="mode-tab" data-mode="files">📂 Archivos del sistema</button>
+                <button class="mode-tab" data-mode="agents">🤖 Agentes Preconfigurados</button>
             </div>
 
             <!-- ── BUILDER ── -->
@@ -809,29 +926,52 @@ Eres Nova, asistente de Tech Solutions…'></textarea>
                 </div>
             </div>
 
-            <!-- ── FILES ── -->
-            <div class="mode-panel" id="mode-files">
+            <!-- ── AGENTS ── -->
+            <div class="mode-panel" id="mode-agents">
                 <div class="card">
-                    <div class="file-selector-row">
-                        <div>
-                            <div class="card-title" style="margin-bottom:2px">Archivos del Sistema</div>
-                            <div class="card-sub" style="margin-bottom:0">
-                                Edita los archivos <code style="font-family:var(--font-mono);font-size:0.75rem;color:var(--cyan)">.yaml</code> /
-                                <code style="font-family:var(--font-mono);font-size:0.75rem;color:var(--cyan)">.md</code> directamente.
-                                Los cambios se guardan en ambos formatos.
+                    <div class="card-title">Agentes Preconfigurados</div>
+                    <div class="card-sub">
+                        Selecciona un perfil de agente para cargar su personalidad preconfigurada.
+                        Ajusta las perillas de intensidad para calibrar cada rasgo.
+                    </div>
+
+                    <div class="agent-grid" id="agentGrid"></div>
+
+                    <div class="agent-config" id="agentConfigPanel">
+                        <div class="agent-config-header">
+                            <span class="agent-config-icon" id="agentCfgIcon"></span>
+                            <div>
+                                <div class="agent-config-title" id="agentCfgTitle"></div>
+                                <div class="agent-config-sub" id="agentCfgSub"></div>
                             </div>
                         </div>
-                        <div class="form-group" style="width:200px;margin:0">
-                            <select id="promptSelect"></select>
+                        <div class="agent-profile-name">
+                            <label>📛 Nombre del perfil</label>
+                            <input type="text" id="agentProfileName" placeholder="Ej: Mi Agente de Ventas">
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <textarea class="mono" id="promptEditor" rows="22"
-                            placeholder="Cargando contenido…"></textarea>
-                    </div>
-                    <div style="display:flex;gap:10px;margin-top:14px">
-                        <button class="btn-primary" id="btnSavePrompt" style="flex:1">💾 Guardar Archivos</button>
-                        <button class="btn-secondary" id="btnUseFilePrompt">✅ Usar este prompt</button>
+                        <div class="agent-identity" id="agentIdentityFields">
+                            <div class="form-group">
+                                <label>🤖 Nombre del Agente</label>
+                                <input type="text" id="ag-name" placeholder="Nova">
+                            </div>
+                            <div class="form-group">
+                                <label>🏢 Empresa</label>
+                                <input type="text" id="ag-company" placeholder="la empresa">
+                            </div>
+                            <div class="form-group">
+                                <label>💼 Rol / Descripción</label>
+                                <input type="text" id="ag-role" placeholder="asistente virtual">
+                            </div>
+                            <div class="form-group">
+                                <label>👋 Saludo Inicial</label>
+                                <input type="text" id="ag-greeting" placeholder="Hola, ¿en qué puedo ayudarle?">
+                            </div>
+                        </div>
+                        <div class="trait-grid" id="traitGrid"></div>
+                        <div style="display:flex;gap:10px;margin-top:18px">
+                            <button class="btn-primary" id="btnApplyAgent" style="flex:1">🚀 Aplicar Agente</button>
+                            <button class="btn-secondary" id="btnSaveAgent">💾 Guardar Perfil</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1157,6 +1297,6 @@ Eres Nova, asistente de Tech Solutions…'></textarea>
 
 <!-- Drop-in replacement for /static/js/admin.js -->
 <script src="/static/js/neural-bg.js"></script>
-<script src="/static/js/admin.js"></script>
+<script src="/static/js/admin.js?v=1.0.2"></script>
 </body>
 </html>

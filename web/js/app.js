@@ -9,6 +9,7 @@ class NovaVoiceApp {
         this.timerInterval = null;
         this.playbackQueue = [];
         this.isPlaying = false;
+        this.agentName = 'Nova';
 
         this.micButton = document.getElementById('micButton');
         this.micIcon = document.querySelector('.mic-icon');
@@ -165,8 +166,8 @@ class NovaVoiceApp {
             this._turnIndicator.style.color = '#4f8ef7';
             this._turnDot.style.background = '#4f8ef7';
             this._turnDot.style.boxShadow = '0 0 8px #4f8ef7';
-            this._turnText.textContent = 'Nova está hablando…';
-            this.logEvent('ai', '▶ Nova está hablando');
+            this._turnText.textContent = `${this.agentName} está hablando…`;
+            this.logEvent('ai', `▶ ${this.agentName} está hablando`);
         } else {
             this._turnIndicator.style.background = 'rgba(52,211,153,.08)';
             this._turnIndicator.style.borderColor = 'rgba(52,211,153,.35)';
@@ -188,11 +189,30 @@ class NovaVoiceApp {
             if (!card) return;
             card.style.display = 'block';
             const cfg = await fetch('/api/admin/prompt-config').then(r => r.json()).catch(() => ({}));
-            const mode = cfg.use_custom
-                ? (cfg.mode === 'builder' ? '🎨 Constructor Visual' : '📝 Texto Personalizado')
-                : '📂 Archivos del sistema';
+            
+            let mode = '📂 Archivos del sistema';
+            this.agentName = 'Nova';
+            
+            if (data.config_exists) {
+                if (cfg.mode === 'agent') {
+                    mode = `🤖 Agente: ${cfg.profile_name || 'Preconfigurado'}`;
+                } else if (cfg.mode === 'builder') {
+                    mode = '🎨 Constructor Visual';
+                } else if (cfg.mode === 'raw') {
+                    mode = '📝 Texto / JSON';
+                }
+                
+                if (cfg.builder?.identity?.name) {
+                    this.agentName = cfg.builder.identity.name;
+                }
+            }
+            
             pill.textContent = mode;
             snip.textContent = data.prompt_preview || 'Sin contenido';
+            
+            if (this.voiceInstruction && !this.isRecording) {
+                this.voiceInstruction.textContent = `Presiona el micrófono para hablar con ${this.agentName}`;
+            }
         } catch {}
     }
 
@@ -239,7 +259,7 @@ class NovaVoiceApp {
                 this.stopIcon.classList.remove('hidden');
                 this.voiceVisualizer.classList.add('active');
                 this.waveformBar.classList.add('active');
-                this.voiceInstruction.textContent = 'Escuchando... Habla con el Asistente Virtual';
+                this.voiceInstruction.textContent = `Escuchando... Habla con ${this.agentName}`;
                 break;
 
             case 'idle':
@@ -250,7 +270,7 @@ class NovaVoiceApp {
                 this.stopIcon.classList.add('hidden');
                 this.voiceVisualizer.classList.remove('active');
                 this.waveformBar.classList.remove('active');
-                this.voiceInstruction.textContent = 'Presiona el micrófono para hablar con el Asistente Virtual';
+                this.voiceInstruction.textContent = `Presiona el micrófono para hablar con ${this.agentName}`;
                 break;
         }
     }

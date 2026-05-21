@@ -103,6 +103,14 @@ app.include_router(admin_router)
 app.mount("/static", StaticFiles(directory="web"), name="static")
 
 
+from fastapi.responses import FileResponse, Response
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
+
+
 @app.get("/")
 async def serve_index():
     return FileResponse("web/index.html")

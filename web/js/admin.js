@@ -49,12 +49,146 @@ const RULE_MAP = {
     abuse_protection:'Finaliza la llamada si detectas abuso o lenguaje inapropiado.'
 };
 
+const AGENT_PRESETS = [
+    {
+        id: 'blank', icon: '⬜', name: 'En Blanco', badge: '',
+        desc: 'Agente sin personalidad predefinida. Configúralo desde cero.',
+        traits: [
+            { key: 'amabilidad',    label: '😊 Amabilidad',     value: 5 },
+            { key: 'formalidad',    label: '🎩 Formalidad',     value: 5 },
+            { key: 'paciencia',     label: '🧘 Paciencia',      value: 5 },
+            { key: 'proactividad',  label: '🚀 Proactividad',   value: 5 },
+            { key: 'detalle',       label: '🔍 Detalle',        value: 5 },
+            { key: 'empatia',       label: '💛 Empatía',        value: 5 },
+            { key: 'persuasion',    label: '🎯 Persuasión',     value: 5 },
+            { key: 'concision',     label: '✂️ Concisión',      value: 5 },
+        ],
+        builder: {
+            identity: { name: 'Nova', company: 'la empresa', role: 'asistente virtual' },
+            language: 'es', tone: 'friendly', greeting: 'Hola, ¿en qué puedo ayudarle?',
+            personality: [], capabilities: ['general'], rules: ['character_lock', 'no_hallucinations'],
+            custom_instructions: ''
+        }
+    },
+    {
+        id: 'ventas', icon: '💰', name: 'Ventas', badge: '★ Popular',
+        desc: 'Vendedor persuasivo, empático y cálido. Cierra tratos con naturalidad.',
+        traits: [
+            { key: 'amabilidad',    label: '😊 Amabilidad',     value: 9 },
+            { key: 'formalidad',    label: '🎩 Formalidad',     value: 4 },
+            { key: 'paciencia',     label: '🧘 Paciencia',      value: 8 },
+            { key: 'proactividad',  label: '🚀 Proactividad',   value: 9 },
+            { key: 'detalle',       label: '🔍 Detalle',        value: 7 },
+            { key: 'empatia',       label: '💛 Empatía',        value: 10 },
+            { key: 'persuasion',    label: '🎯 Persuasión',     value: 9 },
+            { key: 'concision',     label: '✂️ Concisión',      value: 4 },
+        ],
+        builder: {
+            identity: { name: 'Nova', company: 'la empresa', role: 'asistente de ventas' },
+            language: 'es', tone: 'friendly', greeting: '¡Hola! Bienvenido, ¿en qué le puedo ayudar el día de hoy?',
+            personality: ['human_sales', 'warm', 'proactive', 'empathetic'],
+            capabilities: ['inventory', 'transfer', 'general', 'faq'],
+            rules: ['character_lock', 'no_hallucinations', 'synonym_search'],
+            custom_instructions: ''
+        }
+    },
+    {
+        id: 'soporte', icon: '🛠️', name: 'Soporte', badge: '',
+        desc: 'Agente técnico paciente. Resuelve problemas paso a paso.',
+        traits: [
+            { key: 'amabilidad',    label: '😊 Amabilidad',     value: 7 },
+            { key: 'formalidad',    label: '🎩 Formalidad',     value: 6 },
+            { key: 'paciencia',     label: '🧘 Paciencia',      value: 10 },
+            { key: 'proactividad',  label: '🚀 Proactividad',   value: 7 },
+            { key: 'detalle',       label: '🔍 Detalle',        value: 9 },
+            { key: 'empatia',       label: '💛 Empatía',        value: 8 },
+            { key: 'persuasion',    label: '🎯 Persuasión',     value: 2 },
+            { key: 'concision',     label: '✂️ Concisión',      value: 5 },
+        ],
+        builder: {
+            identity: { name: 'Nova', company: 'la empresa', role: 'agente de soporte técnico' },
+            language: 'es', tone: 'friendly', greeting: 'Hola, soy Nova de soporte técnico. Cuénteme, ¿cómo le puedo ayudar?',
+            personality: ['patient', 'detailed', 'empathetic', 'confirm'],
+            capabilities: ['support', 'faq', 'transfer', 'general', 'messages'],
+            rules: ['character_lock', 'no_hallucinations', 'cross_validation'],
+            custom_instructions: 'Guía al usuario paso a paso para resolver su problema. Si no puedes resolverlo, ofrece transferir con un especialista.'
+        }
+    },
+    {
+        id: 'finanzas', icon: '📊', name: 'Finanzas', badge: '',
+        desc: 'Agente formal y preciso. Maneja datos financieros con cuidado.',
+        traits: [
+            { key: 'amabilidad',    label: '😊 Amabilidad',     value: 6 },
+            { key: 'formalidad',    label: '🎩 Formalidad',     value: 9 },
+            { key: 'paciencia',     label: '🧘 Paciencia',      value: 7 },
+            { key: 'proactividad',  label: '🚀 Proactividad',   value: 5 },
+            { key: 'detalle',       label: '🔍 Detalle',        value: 10 },
+            { key: 'empatia',       label: '💛 Empatía',        value: 5 },
+            { key: 'persuasion',    label: '🎯 Persuasión',     value: 3 },
+            { key: 'concision',     label: '✂️ Concisión',      value: 7 },
+        ],
+        builder: {
+            identity: { name: 'Nova', company: 'la empresa', role: 'asistente del departamento de finanzas' },
+            language: 'es', tone: 'formal', greeting: 'Buenos días, soy Nova del departamento de finanzas. ¿En qué puedo asistirle?',
+            personality: ['formal', 'detailed', 'confirm'],
+            capabilities: ['general', 'transfer', 'messages', 'order_status'],
+            rules: ['character_lock', 'no_hallucinations', 'no_personal_data', 'cross_validation'],
+            custom_instructions: 'Maneja toda información financiera con extrema precisión. Siempre confirma montos y datos antes de proceder.'
+        }
+    },
+    {
+        id: 'atencion', icon: '📞', name: 'Atención', badge: '',
+        desc: 'Recepcionista virtual. Canaliza llamadas al departamento correcto.',
+        traits: [
+            { key: 'amabilidad',    label: '😊 Amabilidad',     value: 8 },
+            { key: 'formalidad',    label: '🎩 Formalidad',     value: 7 },
+            { key: 'paciencia',     label: '🧘 Paciencia',      value: 8 },
+            { key: 'proactividad',  label: '🚀 Proactividad',   value: 8 },
+            { key: 'detalle',       label: '🔍 Detalle',        value: 5 },
+            { key: 'empatia',       label: '💛 Empatía',        value: 7 },
+            { key: 'persuasion',    label: '🎯 Persuasión',     value: 3 },
+            { key: 'concision',     label: '✂️ Concisión',      value: 8 },
+        ],
+        builder: {
+            identity: { name: 'Nova', company: 'la empresa', role: 'recepcionista virtual de atención telefónica' },
+            language: 'es', tone: 'friendly', greeting: 'Hola, gracias por comunicarse. ¿Con quién desea hablar o en qué le puedo ayudar?',
+            personality: ['warm', 'concise', 'proactive', 'confirm', 'repeat_before_transfer'],
+            capabilities: ['transfer', 'directory', 'messages', 'general', 'faq'],
+            rules: ['character_lock', 'no_hallucinations', 'cross_validation'],
+            custom_instructions: 'Tu prioridad es identificar rápidamente con quién o con qué departamento necesita hablar el usuario y transferirlo eficientemente.'
+        }
+    },
+    {
+        id: 'tecnico', icon: '⚙️', name: 'Técnico', badge: '',
+        desc: 'Ingeniero de soporte avanzado. Diagnóstico detallado y técnico.',
+        traits: [
+            { key: 'amabilidad',    label: '😊 Amabilidad',     value: 5 },
+            { key: 'formalidad',    label: '🎩 Formalidad',     value: 7 },
+            { key: 'paciencia',     label: '🧘 Paciencia',      value: 9 },
+            { key: 'proactividad',  label: '🚀 Proactividad',   value: 6 },
+            { key: 'detalle',       label: '🔍 Detalle',        value: 10 },
+            { key: 'empatia',       label: '💛 Empatía',        value: 4 },
+            { key: 'persuasion',    label: '🎯 Persuasión',     value: 2 },
+            { key: 'concision',     label: '✂️ Concisión',      value: 3 },
+        ],
+        builder: {
+            identity: { name: 'Nova', company: 'la empresa', role: 'ingeniero de soporte técnico avanzado' },
+            language: 'es', tone: 'formal', greeting: 'Hola, soy Nova del equipo técnico. Describa su situación con el mayor detalle posible.',
+            personality: ['patient', 'detailed', 'formal', 'confirm'],
+            capabilities: ['support', 'faq', 'transfer', 'general'],
+            rules: ['character_lock', 'no_hallucinations', 'cross_validation', 'synonym_search'],
+            custom_instructions: 'Realiza diagnósticos técnicos paso a paso. Pide información específica del sistema, versiones y logs. Si el problema excede tu capacidad, transfiere al equipo de ingeniería.'
+        }
+    }
+];
+
 class NovaAdmin {
     constructor() {
         this.setupTabDataLoading();
         this.setupExtensions();
         this.setupInventory();
         this.setupPrompts();
+        this.setupAgents();
         this.setupTools();
         this.setupSessions();
         this.setupLogs();
@@ -106,7 +240,7 @@ class NovaAdmin {
 
         document.getElementById('promptModeTabs')?.addEventListener('click', e => {
             const btn = e.target.closest('.mode-tab');
-            if (btn?.dataset.mode === 'files') this.loadFilePrompts();
+            if (btn?.dataset.mode === 'agents') this.renderAgentCards();
         });
     }
 
@@ -200,10 +334,6 @@ class NovaAdmin {
 
     // ── PROMPTS ───────────────────────────────────────────────────────────────
     setupPrompts() {
-        document.getElementById('useCustomPrompt')?.addEventListener('change', e => {
-            this.updateSourceBadge(e.target.checked);
-        });
-
         document.querySelectorAll('.check-card input[type="checkbox"]').forEach(cb => {
             cb.addEventListener('change', () => this.updateBuilderPreview());
         });
@@ -218,22 +348,23 @@ class NovaAdmin {
 
         document.getElementById('btnSaveBuilder')?.addEventListener('click', () => this.saveBuilderPrompt());
         document.getElementById('btnActivateRaw')?.addEventListener('click', () => this.saveRawPrompt());
-        document.getElementById('btnSavePrompt')?.addEventListener('click', () => this.saveFilePrompt());
-        document.getElementById('btnUseFilePrompt')?.addEventListener('click', () => this.disableCustomPrompt());
-        document.getElementById('promptSelect')?.addEventListener('change', e => {
-            if (e.target.value) this.loadPromptContent(e.target.value);
-        });
 
         this.updateBuilderPreview();
     }
 
-    updateSourceBadge(isCustom) {
+    updateSourceBadge(mode) {
         const badge = document.getElementById('promptStatusBadge');
         if (!badge) return;
-        badge.textContent = isCustom ? '🎨 Prompt personalizado activo' : '📂 Archivos del sistema';
-        badge.style.background = isCustom ? 'var(--accent-dim)' : 'rgba(103,232,249,.1)';
-        badge.style.color = isCustom ? 'var(--accent)' : 'var(--cyan)';
-        badge.style.borderColor = isCustom ? 'rgba(79,142,247,.3)' : 'rgba(103,232,249,.25)';
+        const modes = {
+            builder: { text: '🎨 Constructor Visual', bg: 'var(--accent-dim)', color: 'var(--accent)', border: 'rgba(79,142,247,.3)' },
+            raw:     { text: '📝 Texto / JSON', bg: 'rgba(52,211,153,.1)', color: '#34d399', border: 'rgba(52,211,153,.3)' },
+            agent:   { text: '🤖 Agente Preconfigurado', bg: 'rgba(251,191,36,.1)', color: '#fbbf24', border: 'rgba(251,191,36,.3)' },
+        };
+        const m = modes[mode] || { text: '📂 Archivos del sistema', bg: 'rgba(103,232,249,.1)', color: 'var(--cyan)', border: 'rgba(103,232,249,.25)' };
+        badge.textContent = m.text;
+        badge.style.background = m.bg;
+        badge.style.color = m.color;
+        badge.style.borderColor = m.border;
     }
 
     getBuilderConfig() {
@@ -287,16 +418,48 @@ class NovaAdmin {
     async loadPromptPanel() {
         try {
             const config = await this.api('GET', '/prompt-config');
-            const toggle = document.getElementById('useCustomPrompt');
-            if (toggle) toggle.checked = !!config.use_custom;
-            this.updateSourceBadge(!!config.use_custom);
+            const mode = config.mode || 'none';
+            this.updateSourceBadge(mode);
+
+            // Cambiar la pestaña de modo activa en la UI de forma programática
+            const tabName = mode === 'agent' ? 'agents' : (mode === 'raw' ? 'raw' : 'builder');
+            document.querySelectorAll('.mode-tab').forEach(t => {
+                if (t.dataset.mode === tabName) t.classList.add('active');
+                else t.classList.remove('active');
+            });
+            document.querySelectorAll('.mode-panel').forEach(p => {
+                if (p.id === `mode-${tabName}`) p.classList.add('active');
+                else p.classList.remove('active');
+            });
+
+            if (mode === 'agent') {
+                this._selectedAgentId = config.agent_id;
+                this._selectedAgentSource = config.agent_source;
+            }
+
             if (config.builder && Object.keys(config.builder).length) this.restoreBuilder(config.builder);
             if (config.raw_content) {
                 const el = document.getElementById('rawPromptInput');
                 if (el) el.value = config.raw_content;
             }
-        } catch {}
-        await this.loadFilePrompts();
+
+            await this.renderAgentCards();
+
+            if (mode === 'agent' && this._selectedAgentId && this._selectedAgentSource) {
+                this.selectAgent(this._selectedAgentId, this._selectedAgentSource);
+                const ab = config.agent_builder || config.builder;
+                if (ab && Object.keys(ab).length) {
+                    const id = ab.identity || {};
+                    if (id.name) document.getElementById('ag-name').value = id.name;
+                    if (id.company) document.getElementById('ag-company').value = id.company;
+                    if (id.role) document.getElementById('ag-role').value = id.role;
+                    if (ab.greeting) document.getElementById('ag-greeting').value = ab.greeting;
+                }
+            }
+        } catch (err) {
+            this.updateSourceBadge('none');
+            await this.renderAgentCards();
+        }
         this.updateBuilderPreview();
     }
 
@@ -321,12 +484,11 @@ class NovaAdmin {
 
     async saveBuilderPrompt() {
         const cfg = this.getBuilderConfig();
-        const payload = { use_custom: true, mode: 'builder', builder: cfg, raw_content: '' };
+        const payload = { mode: 'builder', builder: cfg, raw_content: '' };
         try {
             await this.api('POST', '/prompt-config', payload);
-            if (document.getElementById('useCustomPrompt')) document.getElementById('useCustomPrompt').checked = true;
-            this.updateSourceBadge(true);
-            this.toast('✅ Prompt guardado. Reinicia el servidor para aplicarlo.');
+            this.updateSourceBadge('builder');
+            this.toast('✅ Prompt del Constructor guardado y activado.');
         } catch (err) { this.toast(err.message, 'error'); }
     }
 
@@ -336,51 +498,267 @@ class NovaAdmin {
         let content = raw;
         try { const p = JSON.parse(raw); content = p.system_prompt || p.content || raw; } catch {}
         try {
-            await this.api('POST', '/prompt-config', { use_custom: true, mode: 'raw', raw_content: content, builder: {} });
-            if (document.getElementById('useCustomPrompt')) document.getElementById('useCustomPrompt').checked = true;
-            this.updateSourceBadge(true);
-            this.toast('✅ Prompt activado. Reinicia el servidor para aplicarlo.');
+            await this.api('POST', '/prompt-config', { mode: 'raw', raw_content: content, builder: {} });
+            this.updateSourceBadge('raw');
+            this.toast('✅ Prompt de texto activado.');
         } catch (err) { this.toast(err.message, 'error'); }
     }
 
-    async disableCustomPrompt() {
+    // ── AGENT PRESETS ─────────────────────────────────────────────────────────
+    setupAgents() {
+        this._selectedAgentId = null;
+        this._selectedAgentSource = null;
+        this._agentTraitValues = {};
+        this._customAgents = [];
+        document.getElementById('btnApplyAgent')?.addEventListener('click', () => this.applyAgent());
+        document.getElementById('btnSaveAgent')?.addEventListener('click', () => this.saveCustomAgent());
+    }
+
+    _getIntensityClass(val) {
+        if (val <= 3) return 'intensity-low';
+        if (val <= 6) return 'intensity-mid';
+        if (val <= 8) return 'intensity-high';
+        return 'intensity-max';
+    }
+
+    _intensityLabel(val) {
+        if (val <= 2) return 'Mínimo';
+        if (val <= 4) return 'Bajo';
+        if (val <= 6) return 'Medio';
+        if (val <= 8) return 'Alto';
+        return 'Intenso';
+    }
+
+    async renderAgentCards() {
+        const grid = document.getElementById('agentGrid');
+        if (!grid) return;
+
+        try { this._customAgents = await this.api('GET', '/custom-agents'); } catch { this._customAgents = []; }
+
+        let html = AGENT_PRESETS.map(a => `
+            <div class="agent-card${this._selectedAgentId === a.id && this._selectedAgentSource === 'preset' ? ' selected' : ''}" data-agent="${a.id}" data-source="preset">
+                ${a.badge ? `<span class="agent-card-badge">${a.badge}</span>` : ''}
+                <span class="agent-card-icon">${a.icon}</span>
+                <span class="agent-card-name">${a.name}</span>
+                <span class="agent-card-desc">${a.desc}</span>
+            </div>
+        `).join('');
+
+        html += this._customAgents.map(a => `
+            <div class="agent-card custom${this._selectedAgentId === a.id && this._selectedAgentSource === 'custom' ? ' selected' : ''}" data-agent="${a.id}" data-source="custom">
+                <button class="agent-card-delete" data-delete="${a.id}" title="Eliminar">✕</button>
+                <span class="agent-card-badge">Guardado</span>
+                <span class="agent-card-icon">🧩</span>
+                <span class="agent-card-name">${a.profile_name || 'Sin nombre'}</span>
+                <span class="agent-card-desc">${a.builder?.identity?.role || 'Agente personalizado'}</span>
+            </div>
+        `).join('');
+
+        grid.innerHTML = html;
+
+        grid.querySelectorAll('.agent-card').forEach(card => {
+            card.addEventListener('click', e => {
+                if (e.target.closest('.agent-card-delete')) return;
+                this.selectAgent(card.dataset.agent, card.dataset.source);
+            });
+        });
+        grid.querySelectorAll('.agent-card-delete').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                this.deleteCustomAgent(btn.dataset.delete);
+            });
+        });
+    }
+
+    selectAgent(agentId, source = 'preset') {
+        this._selectedAgentId = agentId;
+        this._selectedAgentSource = source;
+
+        let preset, profileName = '';
+        if (source === 'custom') {
+            const custom = this._customAgents.find(a => a.id === agentId);
+            if (!custom) return;
+            profileName = custom.profile_name || '';
+            preset = {
+                id: custom.id, icon: '🧩', name: custom.profile_name || 'Personalizado',
+                desc: custom.builder?.identity?.role || 'Agente personalizado',
+                traits: custom.traits || AGENT_PRESETS[0].traits,
+                builder: custom.builder || AGENT_PRESETS[0].builder
+            };
+        } else {
+            preset = AGENT_PRESETS.find(a => a.id === agentId);
+            if (!preset) return;
+            profileName = preset.name;
+        }
+
+        this._agentTraitValues = {};
+        preset.traits.forEach(t => { this._agentTraitValues[t.key] = t.value; });
+
+        document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('selected'));
+        const sel = document.querySelector(`.agent-card[data-agent="${agentId}"][data-source="${source}"]`);
+        if (sel) sel.classList.add('selected');
+
+        document.getElementById('agentCfgIcon').textContent = preset.icon;
+        document.getElementById('agentCfgTitle').textContent = `Configurar: ${preset.name}`;
+        document.getElementById('agentCfgSub').textContent = preset.desc;
+
+        const identity = preset.builder?.identity || {};
+        document.getElementById('agentProfileName').value = profileName;
+        document.getElementById('ag-name').value = identity.name || 'Nova';
+        document.getElementById('ag-company').value = identity.company || 'la empresa';
+        document.getElementById('ag-role').value = identity.role || 'asistente virtual';
+        document.getElementById('ag-greeting').value = preset.builder?.greeting || 'Hola, ¿en qué puedo ayudarle?';
+
+        const traitGrid = document.getElementById('traitGrid');
+        traitGrid.innerHTML = preset.traits.map(t => {
+            const ic = this._getIntensityClass(t.value);
+            const il = this._intensityLabel(t.value);
+            return `
+            <div class="trait-row">
+                <span class="trait-label">${t.label} <span class="trait-level ${ic}">${il}</span></span>
+                <input type="range" class="trait-slider ${ic}" min="1" max="10" value="${t.value}" data-trait="${t.key}">
+                <span class="trait-value ${ic}" data-trait-value="${t.key}">${t.value}</span>
+            </div>`;
+        }).join('');
+
+        traitGrid.querySelectorAll('.trait-slider').forEach(slider => {
+            slider.addEventListener('input', () => {
+                const key = slider.dataset.trait;
+                const val = parseInt(slider.value, 10);
+                this._agentTraitValues[key] = val;
+                const ic = this._getIntensityClass(val);
+                const il = this._intensityLabel(val);
+                const display = traitGrid.querySelector(`[data-trait-value="${key}"]`);
+                if (display) {
+                    display.textContent = val;
+                    display.className = `trait-value ${ic}`;
+                }
+                slider.className = `trait-slider ${ic}`;
+                const label = slider.closest('.trait-row')?.querySelector('.trait-level');
+                if (label) { label.textContent = il; label.className = `trait-level ${ic}`; }
+            });
+        });
+
+        document.getElementById('agentConfigPanel').classList.add('active');
+    }
+
+    _getAgentBuilderFromForm() {
+        const preset = this._selectedAgentSource === 'custom'
+            ? (this._customAgents.find(a => a.id === this._selectedAgentId) || {}).builder || AGENT_PRESETS[0].builder
+            : (AGENT_PRESETS.find(a => a.id === this._selectedAgentId) || AGENT_PRESETS[0]).builder;
+
+        const baseBuilder = JSON.parse(JSON.stringify(preset));
+        baseBuilder.identity = {
+            name: document.getElementById('ag-name')?.value || 'Nova',
+            company: document.getElementById('ag-company')?.value || 'la empresa',
+            role: document.getElementById('ag-role')?.value || 'asistente virtual',
+        };
+        baseBuilder.greeting = document.getElementById('ag-greeting')?.value || 'Hola, ¿en qué puedo ayudarle?';
+
+        const traitInstructions = this._traitsToCustomInstructions(this._agentTraitValues);
+        const baseInstr = preset.custom_instructions || '';
+        baseBuilder.custom_instructions = [baseInstr, traitInstructions].filter(Boolean).join('\n\n');
+
+        return baseBuilder;
+    }
+
+    _traitsToCustomInstructions(traits) {
+        const lines = [];
+        const T = (key) => traits[key] || 5;
+
+        if (T('amabilidad') >= 8)
+            lines.push('Sé extremadamente amable y cálido en cada interacción. Usa un tono cercano y servicial.');
+        else if (T('amabilidad') >= 6)
+            lines.push('Mantén un trato amable y cordial con el usuario.');
+        else if (T('amabilidad') <= 3)
+            lines.push('Sé directo y profesional, sin adornos innecesarios.');
+
+        if (T('formalidad') >= 8)
+            lines.push('Utiliza un lenguaje muy formal y profesional. Trata al usuario de usted.');
+        else if (T('formalidad') <= 3)
+            lines.push('Usa un lenguaje casual y cercano. Tutea al usuario si es apropiado.');
+
+        if (T('paciencia') >= 8)
+            lines.push('Ten mucha paciencia. Repite información cuantas veces sea necesario sin mostrar frustración.');
+        else if (T('paciencia') <= 3)
+            lines.push('Sé eficiente con el tiempo. Si el usuario se desvía, redirige la conversación.');
+
+        if (T('proactividad') >= 8)
+            lines.push('Anticípate a las necesidades del usuario. Ofrece opciones y sugerencias sin que te las pidan.');
+        else if (T('proactividad') <= 3)
+            lines.push('Responde solo lo que te pregunten. No ofrezcas información adicional no solicitada.');
+
+        if (T('detalle') >= 8)
+            lines.push('Da respuestas detalladas y completas. Incluye toda la información relevante.');
+        else if (T('detalle') <= 3)
+            lines.push('Sé breve y conciso. Responde con lo mínimo necesario.');
+
+        if (T('empatia') >= 8)
+            lines.push('Muestra empatía genuina. Reconoce las emociones del usuario y responde con sensibilidad.');
+        else if (T('empatia') <= 3)
+            lines.push('Mantente objetivo y enfocado en los hechos.');
+
+        if (T('persuasion') >= 8)
+            lines.push('Sé persuasivo y convincente. Destaca beneficios y crea sentido de urgencia cuando sea apropiado.');
+        else if (T('persuasion') <= 3)
+            lines.push('Presenta la información de forma neutral sin intentar persuadir.');
+
+        if (T('concision') >= 8)
+            lines.push('Sé extremadamente conciso. Responde en la menor cantidad de palabras posible.');
+        else if (T('concision') <= 3)
+            lines.push('Puedes extenderte en tus explicaciones para asegurar claridad total.');
+
+        return lines.join('\n');
+    }
+
+    async applyAgent() {
+        if (!this._selectedAgentId) { this.toast('Selecciona un agente primero', 'error'); return; }
+        const builder = this._getAgentBuilderFromForm();
+        const name = document.getElementById('agentProfileName')?.value || 'Agente';
+        const payload = {
+            mode: 'agent',
+            agent_id: this._selectedAgentId,
+            agent_source: this._selectedAgentSource,
+            profile_name: name,
+            agent_builder: builder,
+            raw_content: ''
+        };
         try {
-            await this.api('POST', '/prompt-config', { use_custom: false, mode: 'builder', raw_content: '', builder: {} });
-            if (document.getElementById('useCustomPrompt')) document.getElementById('useCustomPrompt').checked = false;
-            this.updateSourceBadge(false);
-            this.toast('✅ Se usarán los archivos del sistema. Reinicia el servidor.');
+            await this.api('POST', '/prompt-config', payload);
+            this.updateSourceBadge('agent');
+            this.updateBuilderPreview();
+            this.toast(`✅ Agente "${name}" aplicado y activado.`);
         } catch (err) { this.toast(err.message, 'error'); }
     }
 
-    async loadFilePrompts() {
+    async saveCustomAgent() {
+        if (!this._selectedAgentId) { this.toast('Selecciona un agente primero', 'error'); return; }
+        const profileName = (document.getElementById('agentProfileName')?.value || '').trim();
+        if (!profileName) { this.toast('Escribe un nombre para el perfil', 'error'); return; }
+
+        const builder = this._getAgentBuilderFromForm();
+        const traits = AGENT_PRESETS[0].traits.map(t => ({
+            ...t, value: this._agentTraitValues[t.key] || t.value
+        }));
+
+        const data = { profile_name: profileName, builder, traits };
         try {
-            const prompts = await this.api('GET', '/prompts');
-            const sel = document.getElementById('promptSelect');
-            if (!sel) return;
-            sel.innerHTML = prompts.map(p => `<option value="${p}">${p}</option>`).join('');
-            if (prompts.length) {
-                const def = prompts.includes('nova_default') ? 'nova_default' : prompts[0];
-                sel.value = def;
-                await this.loadPromptContent(def);
+            await this.api('POST', '/custom-agents', data);
+            this.toast(`💾 Perfil "${profileName}" guardado.`);
+            await this.renderAgentCards();
+        } catch (err) { this.toast(err.message, 'error'); }
+    }
+
+    async deleteCustomAgent(agentId) {
+        if (!confirm('¿Eliminar este perfil de agente?')) return;
+        try {
+            await this.api('DELETE', `/custom-agents/${agentId}`);
+            if (this._selectedAgentId === agentId) {
+                this._selectedAgentId = null;
+                document.getElementById('agentConfigPanel').classList.remove('active');
             }
-        } catch {}
-    }
-
-    async loadPromptContent(name) {
-        try {
-            const data = await this.api('GET', `/prompts/${name}`);
-            const el = document.getElementById('promptEditor');
-            if (el) el.value = data.content;
-        } catch (err) { this.toast(err.message, 'error'); }
-    }
-
-    async saveFilePrompt() {
-        const name    = document.getElementById('promptSelect')?.value;
-        const content = document.getElementById('promptEditor')?.value;
-        if (!name || !content) { this.toast('Selecciona un prompt y agrega contenido', 'error'); return; }
-        try {
-            await this.api('PUT', `/prompts/${name}`, { name, content });
-            this.toast('Archivos guardados (.yaml y .md)');
+            this.toast('Perfil eliminado.');
+            await this.renderAgentCards();
         } catch (err) { this.toast(err.message, 'error'); }
     }
 

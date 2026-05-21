@@ -12,6 +12,14 @@ _session_manager = None
 _prompt_loader = None
 
 
+def _get_prompt_loader():
+    global _prompt_loader
+    if _prompt_loader is None:
+        from ai.prompt_loader import PromptLoader
+        _prompt_loader = PromptLoader()
+    return _prompt_loader
+
+
 def set_dependencies(db, session_manager, prompt_loader):
     global _db, _session_manager, _prompt_loader
     _db = db
@@ -131,25 +139,25 @@ async def get_top_calls_by_cost(limit: int = 10):
 # --- System Prompts ---
 @router.get("/prompts")
 async def list_prompts():
-    return _prompt_loader.list_prompts()
+    return _get_prompt_loader().list_prompts()
 
 
 @router.get("/prompts/{name}")
 async def get_prompt(name: str):
-    content = _prompt_loader.load(name)
+    content = _get_prompt_loader().load(name)
     return {"name": name, "content": content}
 
 
 @router.put("/prompts/{name}")
 async def update_prompt(name: str, data: PromptUpdate):
-    import os
-    os.makedirs(_prompt_loader.prompts_dir, exist_ok=True)
+    loader = _get_prompt_loader()
+    os.makedirs(loader.prompts_dir, exist_ok=True)
     
-    filepath_md = os.path.join(_prompt_loader.prompts_dir, f"{name}.md")
+    filepath_md = os.path.join(loader.prompts_dir, f"{name}.md")
     with open(filepath_md, "w", encoding="utf-8") as f:
         f.write(data.content)
     
-    filepath_yaml = os.path.join(_prompt_loader.prompts_dir, f"{name}.yaml")
+    filepath_yaml = os.path.join(loader.prompts_dir, f"{name}.yaml")
     try:
         import yaml
         yaml.safe_load(data.content)
@@ -176,9 +184,84 @@ async def get_prompt_config():
 @router.post("/prompt-config")
 async def save_prompt_config(data: dict):
     os.makedirs(str(_PROJECT_ROOT / "data"), exist_ok=True)
+    
+    existing_config = {}
+    if os.path.exists(PROMPT_CONFIG_PATH):
+        try:
+            with open(PROMPT_CONFIG_PATH, "r", encoding="utf-8") as f:
+                existing_config = json.load(f)
+        except Exception:
+            pass
+            
+    mode = data.get("mode", "builder")
+    loader = _get_prompt_loader()
+    os.makedirs(loader.prompts_dir, exist_ok=True)
+    
+    existing_config["mode"] = mode
+    if "use_custom" in data:
+        existing_config["use_custom"] = data["use_custom"]
+    if "voice" in data:
+        existing_config["voice"] = data["voice"]
+    
+    if mode == "builder":
+        builder = data.get("builder", {})
+        if builder:
+            existing_config["builder"] = builder
+            compiled = loader._build_from_config(builder)
+            filepath_md = os.path.join(loader.prompts_dir, "nova_builder.md")
+            with open(filepath_md, "w", encoding="utf-8") as f:
+                f.write(compiled)
+                
+    elif mode == "raw":
+        raw_content = data.get("raw_content", "").strip()
+        existing_config["raw_content"] = raw_content
+        filepath_yaml = os.path.join(loader.prompts_dir, "nova_default.yaml")
+        with open(filepath_yaml, "w", encoding="utf-8") as f:
+            f.write(raw_content)
+            
+    elif mode == "agent":
+        agent_id = data.get("agent_id")
+        agent_source = data.get("agent_source", "preset")
+        agent_builder = data.get("agent_builder") or data.get("builder", {})
+        
+        existing_config["agent_id"] = agent_id
+        existing_config["agent_source"] = agent_source
+        if agent_builder:
+            existing_config["agent_builder"] = agent_builder
+            compiled = loader._build_from_config(agent_builder)
+            
+            if agent_source == "custom" and agent_id:
+                filepath_md = os.path.join(loader.prompts_dir, f"nova_custom_{agent_id}.md")
+                with open(filepath_md, "w", encoding="utf-8") as f:
+                    f.write(compiled)
+            else:
+                filepath_md = os.path.join(loader.prompts_dir, "nova_agent.md")
+                with open(filepath_md, "w", encoding="utf-8") as f:
+                    f.write(compiled)
+                
+                if agent_id:
+                    import yaml
+                    filepath_yaml = os.path.join(loader.prompts_dir, f"nova_{agent_id}.yaml")
+                    preset_data = {
+                        "name": agent_builder.get("identity", {}).get("name", "Nova"),
+                        "company": agent_builder.get("identity", {}).get("company", "la empresa"),
+                        "role": agent_builder.get("identity", {}).get("role", "asistente"),
+                        "greeting": agent_builder.get("greeting", ""),
+                        "language": agent_builder.get("language", "es"),
+                        "tone": agent_builder.get("tone", "friendly"),
+                        "personality": agent_builder.get("personality", []),
+                        "capabilities": agent_builder.get("capabilities", []),
+                        "rules": agent_builder.get("rules", []),
+                        "custom_instructions": agent_builder.get("custom_instructions", ""),
+                        "system_prompt": compiled
+                    }
+                    with open(filepath_yaml, "w", encoding="utf-8") as f:
+                        yaml.safe_dump(preset_data, f, allow_unicode=True, default_flow_style=False)
+
     with open(PROMPT_CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    return {"success": True, "message": "Configuración de prompt guardada"}
+        json.dump(existing_config, f, ensure_ascii=False, indent=2)
+        
+    return {"success": True, "message": "Configuración de prompt guardada e implementada físicamente"}
 
 
 @router.get("/prompt-config/active")
@@ -193,3 +276,62 @@ async def get_active_prompt_preview():
         "config_exists": os.path.exists(PROMPT_CONFIG_PATH)
     }
 
+
+CUSTOM_AGENTS_PATH = str(_PROJECT_ROOT / "data" / "custom_agents.json")
+
+
+def _load_custom_agents() -> list:
+    if os.path.exists(CUSTOM_AGENTS_PATH):
+        with open(CUSTOM_AGENTS_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+
+def _save_custom_agents(agents: list):
+    os.makedirs(str(_PROJECT_ROOT / "data"), exist_ok=True)
+    with open(CUSTOM_AGENTS_PATH, "w", encoding="utf-8") as f:
+        json.dump(agents, f, ensure_ascii=False, indent=2)
+
+
+@router.get("/custom-agents")
+async def list_custom_agents():
+    return _load_custom_agents()
+
+
+@router.post("/custom-agents")
+async def create_custom_agent(data: dict):
+    import uuid
+    agents = _load_custom_agents()
+    
+    agent_id = str(uuid.uuid4())[:8]
+    data["id"] = agent_id
+    
+    builder = data.get("builder", {})
+    if builder:
+        loader = _get_prompt_loader()
+        compiled = loader._build_from_config(builder)
+        os.makedirs(loader.prompts_dir, exist_ok=True)
+        filepath_md = os.path.join(loader.prompts_dir, f"nova_custom_{agent_id}.md")
+        with open(filepath_md, "w", encoding="utf-8") as f:
+            f.write(compiled)
+            
+    agents.append(data)
+    _save_custom_agents(agents)
+    return {"success": True, "id": agent_id, "message": f"Agente '{data.get('profile_name', '')}' guardado físicamente"}
+
+
+@router.delete("/custom-agents/{agent_id}")
+async def delete_custom_agent(agent_id: str):
+    agents = _load_custom_agents()
+    agents = [a for a in agents if a.get("id") != agent_id]
+    _save_custom_agents(agents)
+    
+    loader = _get_prompt_loader()
+    filepath_md = os.path.join(loader.prompts_dir, f"nova_custom_{agent_id}.md")
+    if os.path.exists(filepath_md):
+        try:
+            os.remove(filepath_md)
+        except Exception:
+            pass
+            
+    return {"success": True}

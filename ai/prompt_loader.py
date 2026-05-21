@@ -104,55 +104,177 @@ class PromptLoader:
         self._bootstrap_default()
 
     def _bootstrap_default(self):
-        """Si nova_default.md/.yaml no existen, copia desde nova_default_base.yaml."""
         base = Path(self.prompts_dir) / "nova_default_base.yaml"
         target_yaml = Path(self.prompts_dir) / "nova_default.yaml"
-        target_md   = Path(self.prompts_dir) / "nova_default.md"
-        if base.exists() and not target_yaml.exists() and not target_md.exists():
+        if base.exists() and not target_yaml.exists():
             shutil.copy(str(base), str(target_yaml))
             logger.info("Bootstrap: nova_default.yaml creado desde nova_default_base.yaml")
 
+        presets = {
+            "sales": {
+                "name": "Nova",
+                "company": "la empresa",
+                "role": "asistente de ventas",
+                "greeting": "¡Hola! Bienvenido, ¿en qué le puedo ayudar el día de hoy?",
+                "language": "es",
+                "tone": "friendly",
+                "personality": ["human_sales", "warm", "proactive", "empathetic"],
+                "capabilities": ["inventory", "transfer", "general", "faq"],
+                "rules": ["character_lock", "no_hallucinations", "synonym_search"],
+                "custom_instructions": ""
+            },
+            "support": {
+                "name": "Nova",
+                "company": "la empresa",
+                "role": "agente de soporte técnico",
+                "greeting": "Hola, soy Nova de soporte técnico. Cuénteme, ¿cómo le puedo ayudar?",
+                "language": "es",
+                "tone": "friendly",
+                "personality": ["patient", "detailed", "empathetic", "confirm"],
+                "capabilities": ["support", "faq", "transfer", "general", "messages"],
+                "rules": ["character_lock", "no_hallucinations", "cross_validation"],
+                "custom_instructions": "Guía al usuario paso a paso para resolver su problema. Si no puedes resolverlo, ofrece transferir con un especialista."
+            },
+            "finance": {
+                "name": "Nova",
+                "company": "la empresa",
+                "role": "asistente del departamento de finanzas",
+                "greeting": "Buenos días, soy Nova del departamento de finanzas. ¿En qué puedo asistirle?",
+                "language": "es",
+                "tone": "formal",
+                "personality": ["formal", "detailed", "confirm"],
+                "capabilities": ["general", "transfer", "messages", "order_status"],
+                "rules": ["character_lock", "no_hallucinations", "no_personal_data", "cross_validation"],
+                "custom_instructions": "Maneja toda información financiera con extrema precisión. Siempre confirma montos y datos antes de proceder."
+            },
+            "attention": {
+                "name": "Nova",
+                "company": "la empresa",
+                "role": "recepcionista virtual de atención telefónica",
+                "greeting": "Hola, gracias por comunicarse. ¿Con quién desea hablar o en qué le puedo ayudar?",
+                "language": "es",
+                "tone": "friendly",
+                "personality": ["warm", "concise", "proactive", "confirm", "repeat_before_transfer"],
+                "capabilities": ["transfer", "directory", "messages", "general", "faq"],
+                "rules": ["character_lock", "no_hallucinations", "cross_validation"],
+                "custom_instructions": "Tu prioridad es identificar rápidamente con quién o con qué departamento necesita hablar el usuario y transferirlo eficientemente."
+            },
+            "technical": {
+                "name": "Nova",
+                "company": "la empresa",
+                "role": "ingeniero de soporte técnico avanzado",
+                "greeting": "Hola, soy Nova del equipo técnico. Describa su situación con el mayor detalle posible.",
+                "language": "es",
+                "tone": "formal",
+                "personality": ["patient", "detailed", "formal", "confirm"],
+                "capabilities": ["support", "faq", "transfer", "general"],
+                "rules": ["character_lock", "no_hallucinations", "cross_validation", "synonym_search"],
+                "custom_instructions": "Realiza diagnósticos técnicos paso a paso. Pide información específica del sistema, versiones y logs. Si el problema excede tu capacidad, transfiere al equipo de ingeniería."
+            }
+        }
+
+        import yaml
+        os.makedirs(self.prompts_dir, exist_ok=True)
+        for key, preset_data in presets.items():
+            preset_file = Path(self.prompts_dir) / f"nova_{key}.yaml"
+            if not preset_file.exists():
+                compiled_text = self._build_from_config(preset_data)
+                preset_data["system_prompt"] = compiled_text
+                with open(preset_file, "w", encoding="utf-8") as f:
+                    yaml.safe_dump(preset_data, f, allow_unicode=True, default_flow_style=False)
+                logger.info(f"Bootstrap: {preset_file.name} creado con éxito")
+
     def load(self, prompt_name: str = "nova_default") -> str:
+        mode = "none"
+        agent_id = None
+        agent_source = "preset"
+
         if os.path.exists(PROMPT_CONFIG_PATH):
             try:
                 with open(PROMPT_CONFIG_PATH, "r", encoding="utf-8") as f:
                     config = json.load(f)
-                if config.get("use_custom"):
-                    mode = config.get("mode", "builder")
-                    if mode == "raw":
-                        content = config.get("raw_content", "").strip()
-                        if content:
-                            logger.info("Usando prompt personalizado (modo texto/JSON)")
-                            return content
-                    elif mode == "builder":
-                        builder = config.get("builder", {})
-                        if builder:
-                            logger.info("Usando prompt personalizado (modo constructor visual)")
-                            return self._build_from_config(builder)
+                mode = config.get("mode", "none")
+                agent_id = config.get("agent_id")
+                agent_source = config.get("agent_source", "preset")
             except Exception as e:
-                logger.warning(f"Error leyendo prompt_config.json: {e}, usando archivos del sistema")
+                logger.warning(f"Error leyendo prompt_config.json: {e}")
 
-        filepath_yaml = os.path.join(self.prompts_dir, f"{prompt_name}.yaml")
-        filepath_md   = os.path.join(self.prompts_dir, f"{prompt_name}.md")
-        filepath      = filepath_yaml if os.path.exists(filepath_yaml) else filepath_md
+        filepath = None
+        if mode == "raw":
+            filepath = os.path.join(self.prompts_dir, "nova_default.yaml")
+        elif mode == "builder":
+            filepath = os.path.join(self.prompts_dir, "nova_builder.md")
+            if not os.path.exists(filepath) and os.path.exists(PROMPT_CONFIG_PATH):
+                try:
+                    with open(PROMPT_CONFIG_PATH, "r", encoding="utf-8") as f:
+                        config = json.load(f)
+                    builder = config.get("builder", {})
+                    if builder:
+                        compiled = self._build_from_config(builder)
+                        with open(filepath, "w", encoding="utf-8") as f2:
+                            f2.write(compiled)
+                except Exception as e:
+                    logger.error(f"Error re-compilando prompt del builder: {e}")
+        elif mode == "agent":
+            if agent_source == "custom" and agent_id:
+                filepath = os.path.join(self.prompts_dir, f"nova_custom_{agent_id}.md")
+                if not os.path.exists(filepath):
+                    try:
+                        custom_agents_path = os.path.join(os.path.dirname(PROMPT_CONFIG_PATH), "custom_agents.json")
+                        if os.path.exists(custom_agents_path):
+                            with open(custom_agents_path, "r", encoding="utf-8") as f2:
+                                agents = json.load(f2)
+                            agent_data = next((a for a in agents if a.get("id") == agent_id), None)
+                            if agent_data and agent_data.get("builder"):
+                                compiled = self._build_from_config(agent_data["builder"])
+                                with open(filepath, "w", encoding="utf-8") as f3:
+                                    f3.write(compiled)
+                                logger.info(f"Auto-recuperación exitosa para prompt de agente personalizado: {filepath}")
+                    except Exception as e:
+                        logger.warning(f"No se pudo auto-recuperar el prompt del agente personalizado: {e}")
+            else:
+                filepath_yaml = os.path.join(self.prompts_dir, f"nova_{agent_id}.yaml")
+                if agent_id and os.path.exists(filepath_yaml):
+                    filepath = filepath_yaml
+                else:
+                    filepath = os.path.join(self.prompts_dir, "nova_agent.md")
+
+        if not filepath or not os.path.exists(filepath):
+            filepath_yaml = os.path.join(self.prompts_dir, f"{prompt_name}.yaml")
+            filepath_md   = os.path.join(self.prompts_dir, f"{prompt_name}.md")
+            filepath      = filepath_yaml if os.path.exists(filepath_yaml) else filepath_md
 
         if not os.path.exists(filepath):
-            logger.warning(f"Prompt no encontrado: {filepath}, usando prompt por defecto")
-            return "Eres un asistente de voz profesional. Responde en español."
+            base_yaml = os.path.join(self.prompts_dir, "nova_default_base.yaml")
+            if os.path.exists(base_yaml):
+                filepath = base_yaml
+            else:
+                logger.warning("Ningún archivo de prompt encontrado, usando fallback")
+                return "Eres un asistente de voz profesional. Responde en español."
 
         with open(filepath, "r", encoding="utf-8") as f:
             content = f.read()
-        logger.info(f"System prompt cargado desde archivo: {filepath} ({len(content)} chars)")
+
+        if filepath.endswith(".yaml"):
+            try:
+                import yaml
+                data = yaml.safe_load(content)
+                if isinstance(data, dict) and "system_prompt" in data:
+                    return data["system_prompt"]
+            except Exception as e:
+                logger.warning(f"Error analizando estructura YAML del prompt: {e}")
+
         return content
 
     def _build_from_config(self, builder: dict) -> str:
         identity = builder.get("identity", {})
+        if not identity and "name" in builder:
+            identity = builder
         name     = identity.get("name", "Asistente")
         company  = identity.get("company", "la empresa")
         role     = identity.get("role", "asistente virtual de atención telefónica")
 
         language    = builder.get("language", "es")
-        db_language = builder.get("db_language", "es")
         tone        = builder.get("tone", "friendly")
         personality = builder.get("personality", [])
         greeting    = builder.get("greeting", f"Hola, soy {name}, ¿en qué puedo ayudarle?")
@@ -196,25 +318,25 @@ class PromptLoader:
         return "\n".join(lines)
 
     def get_voice(self) -> str:
-        """Retorna el nombre de voz configurado, por defecto 'Aoede'."""
         if os.path.exists(PROMPT_CONFIG_PATH):
             try:
                 with open(PROMPT_CONFIG_PATH, "r", encoding="utf-8") as f:
                     config = json.load(f)
-                if config.get("use_custom"):
+                if config.get("use_custom") or config.get("mode") in ("builder", "agent", "raw"):
                     return config.get("voice", "Aoede")
             except Exception:
                 pass
         return "Aoede"
 
     def get_db_language(self) -> str:
-        """Retorna el idioma configurado para la base de datos, por defecto 'es'."""
         if os.path.exists(PROMPT_CONFIG_PATH):
             try:
                 with open(PROMPT_CONFIG_PATH, "r", encoding="utf-8") as f:
                     config = json.load(f)
-                if config.get("use_custom"):
-                    return config.get("builder", {}).get("db_language", "es")
+                if config.get("use_custom") or config.get("mode") in ("builder", "agent", "raw"):
+                    builder = config.get("builder", {})
+                    if builder:
+                        return builder.get("db_language", "es")
             except Exception:
                 pass
         return "es"
