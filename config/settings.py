@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     tools_dir: str = Field(default="./config/tools")
     usd_exchange_rate: float = Field(default=17.37, description="Tipo de cambio de pesos a dólares (ej: 17.37 MXN = 1 USD)")
 
+    odoo_base_url: str = Field(default="", description="URL base de Odoo (ej: https://mi-empresa.odoo.com)")
+    odoo_db: str = Field(default="", description="Base de datos de Odoo")
+    odoo_api_key: str = Field(default="", description="API Key de Odoo para JSON-2 API")
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
