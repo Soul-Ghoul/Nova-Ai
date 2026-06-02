@@ -52,6 +52,14 @@ class GeminiLiveClient:
             ),
         )
 
+    @staticmethod
+    def _drain_queue(q: asyncio.Queue):
+        while not q.empty():
+            try:
+                q.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+
     async def start_session(self, session: CallSession, prompt_name: str = "nova_default", user_id: int | None = None):
         if not self._client:
             logger.error("No se puede iniciar sesión: GEMINI_API_KEY no configurada")
@@ -64,6 +72,7 @@ class GeminiLiveClient:
             if not session.active:
                 break
             try:
+                self._drain_queue(session.audio_queue_in)
                 logger.info(f"Conectando sesión {session.session_id} a Gemini Live (intento {attempt + 1}/{max_retries})...")
                 async with self._client.aio.live.connect(
                     model=self._model,
@@ -94,12 +103,14 @@ class GeminiLiveClient:
                 break
             except Exception as e:
                 logger.error(f"Error en sesión Gemini {session.session_id} (intento {attempt + 1}): {e}")
+                self._drain_queue(session.audio_queue_in)
                 if attempt < max_retries - 1 and session.active:
                     wait = 1.5 * (attempt + 1)
                     logger.info(f"Reintentando en {wait:.1f}s...")
                     await asyncio.sleep(wait)
                 else:
-                    raise
+                    session.active = False
+                    break
             finally:
                 session.gemini_session = None
 
@@ -126,6 +137,8 @@ class GeminiLiveClient:
             pass
         except Exception as e:
             logger.error(f"Error enviando audio a Gemini: {e}")
+        finally:
+            self._drain_queue(session.audio_queue_in)
 
     async def _receive_loop(self, session: CallSession, gemini_session):
         try:
@@ -198,6 +211,8 @@ class GeminiLiveClient:
                 except Exception as e:
                     if session.active:
                         logger.error(f"Error recibiendo de Gemini: {e}")
+                        session.active = False
+                        self._drain_queue(session.audio_queue_in)
                     break
         except asyncio.CancelledError:
             pass

@@ -72,10 +72,10 @@
           },
           "customer_name": {
             "type": "string",
-            "description": "Nombre del cliente en llamada si fue provisto"
+            "description": "Nombre del cliente en llamada si fue provisto. Si no fue provisto, envía un string vacío ''."
           }
         },
-        "required": ["products_names", "quantities"]
+        "required": ["products_names", "quantities", "customer_name"]
       }
     }
   ]
