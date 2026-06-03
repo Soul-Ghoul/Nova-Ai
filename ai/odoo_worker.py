@@ -260,13 +260,15 @@ Devuelve ÚNICAMENTE el JSON plano estructurado con la clave "search_terms". Sin
         fields = [
             "name", "default_code", "barcode",
             "list_price", "qty_available",
-            "categ_id", "type",
+            "categ_id", "type", "taxes_id",
         ]
 
         results = await self._search_read("product.product", domain, fields, limit=80)
 
         if not results:
             return f"No se encontraron productos en Odoo para '{q}'."
+
+        results = await self._attach_taxes(results)
 
         total = len(results)
 
@@ -317,6 +319,39 @@ Devuelve ÚNICAMENTE el JSON plano estructurado con la clave "search_terms". Sin
         logger.info(f"OdooWorker paginación: enviando {len(page)} productos (idx {start_idx}-{next_index})")
         return catalog
 
+    async def _attach_taxes(self, products: list[dict]) -> list[dict]:
+        all_tax_ids = set()
+        for p in products:
+            for tid in (p.get("taxes_id") or []):
+                all_tax_ids.add(int(tid))
+
+        if not all_tax_ids:
+            return products
+
+        domain = [["id", "in", list(all_tax_ids)]]
+        fields = ["id", "name", "amount", "amount_type"]
+        tax_records = await self._search_read("account.tax", domain, fields, limit=len(all_tax_ids))
+
+        tax_map = {}
+        for t in tax_records:
+            tid = t.get("id")
+            amount_type = t.get("amount_type", "percent")
+            amount = t.get("amount", 0)
+            name = t.get("name", "")
+            if amount_type == "percent":
+                label = f"{name} ({amount:.4g}%)"
+            elif amount_type == "fixed":
+                label = f"{name} (fijo ${amount:,.2f})"
+            else:
+                label = name
+            tax_map[tid] = label
+
+        for p in products:
+            tax_ids = p.get("taxes_id") or []
+            p["_taxes_resolved"] = [tax_map[int(i)] for i in tax_ids if int(i) in tax_map]
+
+        return products
+
     def _build_catalog(self, products: list[dict], query: str, continuation: bool = False) -> str:
         grouped = defaultdict(list)
         for p in products:
@@ -341,12 +376,14 @@ Devuelve ÚNICAMENTE el JSON plano estructurado con la clave "search_terms". Sin
                 price = p.get("list_price", 0) or 0
                 qty = p.get("qty_available", 0) or 0
                 barcode = p.get("barcode") or ""
+                taxes = p.get("_taxes_resolved") or []
 
                 stock_str = f"stock: {int(qty)}" if qty > 0 else "agotado"
                 code_str = f" [{code}]" if code else ""
                 barcode_str = f" | cod.barras: {barcode}" if barcode else ""
+                tax_str = f" | IVA: {', '.join(taxes)}" if taxes else ""
 
-                line = f"    - {name}{code_str} — ${price:,.2f} ({stock_str}){barcode_str}"
+                line = f"    - {name}{code_str} — ${price:,.2f} ({stock_str}){barcode_str}{tax_str}"
                 lines.append(line)
             lines.append("")
 
@@ -355,6 +392,7 @@ Devuelve ÚNICAMENTE el JSON plano estructurado con la clave "search_terms". Sin
             lines.append(f"Encontrados en esta categoría: {total_p} productos")
 
         return "\n".join(lines)
+
 
     async def test_connection(self) -> dict:
         url = f"{self.base_url}/json/2/res.users/search_read"

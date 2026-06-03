@@ -93,20 +93,26 @@ Cuando recibas un catálogo de inventario como resultado de una consulta:
 
 - CONVERSIÓN DE PRECIOS A USD (BILINGÜE):
   - Si estás hablando en inglés, debes decir ÚNICAMENTE el precio en USD. El catálogo te dará los precios en formato '$MXN (~$USD | ~£GBP)' (por ejemplo: '$1,500 MXN (~$86.36 USD)'). Debes responder en inglés utilizando esa cantidad en USD (por ejemplo: 'eighty-six point thirty-six dollars' o '$86.36 USD'). Está ESTRICTAMENTE PROHIBIDO que menciones el precio en pesos (MXN) en tus respuestas en inglés.
-  - Si estás hablando en español, debes decir ÚNICAMENTE el precio en pesos (MXN) (por ejemplo: 'mil quinientos pesos' o '$1,500 MXN').
+    - Si estás hablando en español, debes decir ÚNICAMENTE el precio en pesos (MXN) y leer cada monto una sola vez, respetando exactamente su valor completo, sin repetir grupos ni fragmentar el número. Por ejemplo: '$1,500 MXN' -> 'mil quinientos pesos' y '$1,000,000 MXN' -> 'un millón de pesos'.
+      * REGLA DE FORMATO NUMÉRICO DE PRECIOS: La coma (,) separa los miles y el punto (.) separa los centavos. Por ejemplo, '$24,500.00' representa veinticuatro mil quinientos pesos (miles, no millones). Un precio de cinco o seis cifras con una sola coma (como $120,000.00) representa miles (ciento veinte mil pesos), nunca millones. Los millones se estructuran obligatoriamente con dos comas (como $1,000,000.00). Prohíbase terminantemente confundir miles con millones al hablar en español.
+
+- SIEMPRE QUE EL USUARIO YA TENGA PRODUCTOS SELECCIONADOS O SE VAYA A CERRAR UNA COTIZACIÓN, DEBES DECIR EL PRECIO SUBTOTAL ACUMULADO NETO DE LOS PRODUCTOS (EL PRECIO BASE SIN IMPUESTOS DEL CATÁLOGO) Y ACLARAR DE MANERA OBLIGATORIA QUE DICHO TOTAL ES MÁS EL IMPUESTO O IVA ESPECÍFICO DE CADA PRODUCTO (EJ. 'MÁS EL 16% DE IVA' O 'EXENTO DE IMPUESTOS' SEGÚN INDIQUE EL CATÁLOGO). ESTÁ ESTRICTAMENTE PROHIBIDO INTENTAR SUMAR O CALCULAR EL IVA TÚ MISMO, Y TAMBIÉN ESTÁ PROHIBIDO AFIRMAR QUE EL PRECIO NETO YA INCLUYE IMPUESTOS.
 
 Para preguntas de seguimiento sobre productos que YA consultaste, NO vuelvas a llamar a la herramienta. Ya tienes los datos, úsalos directamente.
-Cuando el cliente busque algun producto tu le diras marcas y le en listaras las disponibles, una vez que confirme que si quiere el prodcuto le preguntaras que si busca algun otro y hasta podrias recomendarle algo relacionado a el, una vez que ya no busque nada vas a darle el precio final(Vas a decir bien la cantidad sobre los precios mexicanos) con los productos que quiere y si confirma vas a preguntar su nombre para crear una cotización y lo vas a transferir a ventas.
+Cuando el cliente busque algun producto tu le diras marcas y le en listaras las disponibles, una vez que confirme que si quiere el prodcuto le preguntaras que si busca algun otro y hasta podrias recomendarle algo relacionado a el, una vez que ya no busque nada vas a darle el precio final en pesos mexicanos presentando el subtotal neto y aclarando de forma obligatoria que es más el IVA o impuesto específico de cada producto, con los productos que quiere y si confirma vas a preguntar su nombre para crear una cotización y lo vas a transferir a ventas.
 Solo consulta el inventario de nuevo si el usuario pide algo que NO está en tu contexto actual.
  
 - PROTOCOLO INMUTABLE DE CONFIRMACIÓN DE COMPRA:
+  0. No menciones Odoo, Python cosas tecnicas.
   1. Si el cliente tiene intención de comprar o cotizar un producto, DEBES clarificar cualquier ambigüedad antes de proceder. Si existen múltiples modelos similares (ej: 'laptop HP' o 'EliteBook'), DEBES presentarle las opciones disponibles de forma clara y preguntarle cuál de ellas desea.
-  2. Antes de crear cualquier cotización, presupuesto o requisición en Odoo, DEBES recitarle explícitamente al cliente el nombre exacto de cada producto, el modelo y la cantidad solicitada (ejemplo: '¿Es correcto que deseas comprar 2 unidades de Cable prearmado de 18mts CAT6?').
+  2. Antes de crear cualquier cotización, presupuesto o requisición en Odoo, DEBES recitarle explícitamente al cliente el nombre exacto de cada producto, el modelo, la cantidad solicitada y el precio total aclarando de forma obligatoria que es un subtotal más el IVA o impuesto específico (ejemplo: '¿Es correcto que deseas comprar 2 unidades de Cable prearmado de 18mts CAT6 por un subtotal de $90 pesos más el 16% de IVA?'). Está TERMINANTEMENTE PROHIBIDO decir que ya incluye IVA si estás mencionando el precio de catálogo, y también está PROHIBIDO que intentes sumar o calcular el total con IVA por tu cuenta.
   3. Está TERMINANTEMENTE PROHIBIDO usar la función create_odoo_order sin haber obtenido previamente una confirmación verbal afirmativa clara (un 'sí' rotundo) por parte del usuario respecto a la lista exacta de productos y cantidades recitadas.
   4. CRÍTICO: Nunca intentes escribir código, scripts (Python, etc.) ni bloques de texto con formato markdown. Para ejecutar acciones, utiliza ÚNICAMENTE las funciones proporcionadas mediante el mecanismo nativo de Function Calling.
-
-Si el usuario muestra interés real de compra, ofrécele transferirlo con un agente de ventas para que lo asesore personalmente."""
-
+  5. REGLA ABSOLUTA DE INVENTARIO: Está TERMINANTEMENTE PROHIBIDO alucinar, inventar o recomendar productos, accesorios, consumibles, marcas, complementos o modelos que no aparezcan de forma explícitamente listados en el resultado actual de la herramienta (lookup_inventory). . NUNCA ofrezcas alternativas o recomendaciones que no existan, si te piden o te preguntan sobre recomendaciones, busca y con base a eso ofrece las recomendaciones.
+  
+Si el usuario muestra interés real de compra, ofrécele transferirlo con un agente de ventas para que lo asesore personalmente.
+Si ya se creo la cotización, presupuesto o requisición en Odoo, mencionale directamente que sera transferido con un agente de ventas para el cierre de la venta.
+"""
 
 class PromptLoader:
     def __init__(self):
@@ -192,7 +198,7 @@ class PromptLoader:
                 try:
                     with open(preset_file, "r", encoding="utf-8") as f:
                         content = f.read()
-                    if "USD" not in content:
+                    if "usd" not in content.lower() or "más el 16% de iva?" not in content.lower():
                         should_recreate = True
                 except Exception:
                     should_recreate = True
@@ -240,7 +246,16 @@ class PromptLoader:
                 filepath = os.path.join(self.prompts_dir, "nova_default.yaml")
         elif mode == "builder":
             filepath = os.path.join(self.prompts_dir, f"nova_builder_{user_id}.md" if user_id else "nova_builder.md")
-            if not os.path.exists(filepath) and os.path.exists(config_path):
+            should_recompile = False
+            if os.path.exists(filepath):
+                try:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        fc = f.read()
+                    if "INSTRUCCIONES DE INVENTARIO Y VENTAS:" in fc and "más el 16% de iva?" not in fc.lower():
+                        should_recompile = True
+                except Exception:
+                    pass
+            if (not os.path.exists(filepath) or should_recompile) and os.path.exists(config_path):
                 try:
                     with open(config_path, "r", encoding="utf-8") as f:
                         config = json.load(f)
@@ -249,12 +264,22 @@ class PromptLoader:
                         compiled = self._build_from_config(builder)
                         with open(filepath, "w", encoding="utf-8") as f2:
                             f2.write(compiled)
+                        logger.info(f"PromptLoader: Re-compilado prompt del builder por desactualización: {filepath}")
                 except Exception as e:
                     logger.error(f"Error re-compilando prompt del builder: {e}")
         elif mode == "agent":
             if agent_source == "custom" and agent_id:
                 filepath = os.path.join(self.prompts_dir, f"nova_custom_{agent_id}.md")
-                if not os.path.exists(filepath):
+                should_recompile = False
+                if os.path.exists(filepath):
+                    try:
+                        with open(filepath, "r", encoding="utf-8") as f:
+                            fc = f.read()
+                        if "INSTRUCCIONES DE INVENTARIO Y VENTAS:" in fc and "más el 16% de iva?" not in fc.lower():
+                            should_recompile = True
+                    except Exception:
+                        pass
+                if not os.path.exists(filepath) or should_recompile:
                     try:
                         custom_agents_path = self._get_custom_agents_path(user_id)
                         if os.path.exists(custom_agents_path):
@@ -265,13 +290,49 @@ class PromptLoader:
                                 compiled = self._build_from_config(agent_data["builder"])
                                 with open(filepath, "w", encoding="utf-8") as f3:
                                     f3.write(compiled)
-                                logger.info(f"Auto-recuperación exitosa para prompt de agente personalizado: {filepath}")
+                                logger.info(f"Auto-recuperación/Recompilación exitosa para prompt de agente personalizado: {filepath}")
                     except Exception as e:
-                        logger.warning(f"No se pudo auto-recuperar el prompt del agente personalizado: {e}")
+                        logger.warning(f"No se pudo auto-recuperar/recompilar el prompt del agente personalizado: {e}")
             else:
                 if agent_id and user_id:
                     filepath_user_yaml = os.path.join(self.prompts_dir, f"nova_{agent_id}_{user_id}.yaml")
+                    should_recompile_yaml = False
                     if os.path.exists(filepath_user_yaml):
+                        try:
+                            with open(filepath_user_yaml, "r", encoding="utf-8") as f:
+                                fc = f.read()
+                            if "INSTRUCCIONES DE INVENTARIO Y VENTAS:" in fc and "más el 16% de iva?" not in fc.lower():
+                                should_recompile_yaml = True
+                        except Exception:
+                            pass
+                        
+                        if should_recompile_yaml:
+                            try:
+                                import yaml
+                                with open(filepath_user_yaml, "r", encoding="utf-8") as f:
+                                    data = yaml.safe_load(f)
+                                builder = {
+                                    "identity": {
+                                        "name": data.get("name", "Nova"),
+                                        "company": data.get("company", "la empresa"),
+                                        "role": data.get("role", "asistente")
+                                    },
+                                    "greeting": data.get("greeting", ""),
+                                    "language": data.get("language", "es"),
+                                    "tone": data.get("tone", "friendly"),
+                                    "personality": data.get("personality", []),
+                                    "capabilities": data.get("capabilities", []),
+                                    "rules": data.get("rules", []),
+                                    "custom_instructions": data.get("custom_instructions", "")
+                                }
+                                compiled = self._build_from_config(builder)
+                                data["system_prompt"] = compiled
+                                with open(filepath_user_yaml, "w", encoding="utf-8") as f:
+                                    yaml.safe_dump(data, f, allow_unicode=True, default_flow_style=False)
+                                logger.info(f"PromptLoader: Recompilado preset de usuario desactualizado: {filepath_user_yaml}")
+                            except Exception as e:
+                                logger.error(f"Error recompilando preset de usuario: {e}")
+                        
                         filepath = filepath_user_yaml
                 
                 if not filepath:
@@ -311,7 +372,29 @@ class PromptLoader:
                 import yaml
                 data = yaml.safe_load(content)
                 if isinstance(data, dict) and "system_prompt" in data:
-                    return data["system_prompt"]
+                    system_prompt_str = data["system_prompt"]
+                    if "INSTRUCCIONES DE INVENTARIO Y VENTAS:" in system_prompt_str and "más el 16% de iva?" not in system_prompt_str.lower():
+                        builder = {
+                            "identity": {
+                                "name": data.get("name", "Nova"),
+                                "company": data.get("company", "la empresa"),
+                                "role": data.get("role", "asistente")
+                            },
+                            "greeting": data.get("greeting", ""),
+                            "language": data.get("language", "es"),
+                            "tone": data.get("tone", "friendly"),
+                            "personality": data.get("personality", []),
+                            "capabilities": data.get("capabilities", []),
+                            "rules": data.get("rules", []),
+                            "custom_instructions": data.get("custom_instructions", "")
+                        }
+                        compiled = self._build_from_config(builder)
+                        data["system_prompt"] = compiled
+                        with open(filepath, "w", encoding="utf-8") as f_out:
+                            yaml.safe_dump(data, f_out, allow_unicode=True, default_flow_style=False)
+                        logger.info(f"PromptLoader: Recompilado archivo preset yaml por desactualización: {filepath}")
+                        return compiled
+                    return system_prompt_str
             except Exception as e:
                 logger.warning(f"Error analizando estructura YAML del prompt: {e}")
 

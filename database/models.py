@@ -127,9 +127,12 @@ CREATE TABLE IF NOT EXISTS admin_agents (
     agent_id TEXT NOT NULL,
     name TEXT NOT NULL,
     system_prompt TEXT NOT NULL,
+    builder_config TEXT DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, agent_id),
     FOREIGN KEY(user_id) REFERENCES admin_users(id) ON DELETE CASCADE
 );
+
 
 CREATE TABLE IF NOT EXISTS agent_data_source (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -223,9 +226,12 @@ CREATE TABLE IF NOT EXISTS admin_agents (
     agent_id TEXT NOT NULL,
     name TEXT NOT NULL,
     system_prompt TEXT NOT NULL,
+    builder_config TEXT DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, agent_id),
     FOREIGN KEY(user_id) REFERENCES admin_users(id) ON DELETE CASCADE
 );
+
 
 CREATE TABLE IF NOT EXISTS agent_data_source (
     id SERIAL PRIMARY KEY,

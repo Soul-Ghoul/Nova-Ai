@@ -408,78 +408,56 @@ async def get_active_prompt_preview(request):
     return HttpResponse(status=405)
 
 
-def _load_custom_agents(user_id: int) -> list:
-    loader = _get_prompt_loader()
-    path = loader._get_custom_agents_path(user_id)
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return []
+async def _load_custom_agents(user_id: int) -> list:
+    try:
+        return await _db.get_all_admin_agents(user_id)
+    except Exception:
+        return []
 
 
-def _save_custom_agents(agents: list, user_id: int):
-    loader = _get_prompt_loader()
-    path = loader._get_custom_agents_path(user_id)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(agents, f, ensure_ascii=False, indent=2)
+async def _save_agent_to_db(user_id: int, agent_id: str, data: dict, compiled: str = ""):
+    profile_name = data.get("profile_name", "Agente Personalizado")
+    builder_config = {
+        "profile_name": profile_name,
+        "builder": data.get("builder", {}),
+        "traits": data.get("traits", []),
+    }
+    await _db.save_admin_agent(user_id, agent_id, profile_name, compiled or "", builder_config)
 
 
 async def custom_agents_handler(request):
     user_id = request.admin_user["id"]
     if request.method == "GET":
-        return JsonResponse(_load_custom_agents(user_id), safe=False)
-        
+        return JsonResponse(await _load_custom_agents(user_id), safe=False)
+
     elif request.method == "POST":
         try:
             data = json.loads(request.body.decode("utf-8"))
-            agents = _load_custom_agents(user_id)
-            
             agent_id = str(uuid.uuid4())[:8]
             data["id"] = agent_id
-            
+
             builder = data.get("builder", {})
+            compiled = ""
             if builder:
                 loader = _get_prompt_loader()
                 compiled = loader._build_from_config(builder)
-                os.makedirs(loader.prompts_dir, exist_ok=True)
-                filepath_md = os.path.join(loader.prompts_dir, f"nova_custom_{agent_id}.md")
-                with open(filepath_md, "w", encoding="utf-8") as f:
-                    f.write(compiled)
-                
-                # Sincronizar agente personalizado nuevo en la base de datos
-                await _db.save_admin_agent(user_id, agent_id, data.get("profile_name", "Agente Personalizado"), compiled)
-                    
-            agents.append(data)
-            _save_custom_agents(agents, user_id)
-            return JsonResponse({"success": True, "id": agent_id, "message": f"Agente '{data.get('profile_name', '')}' guardado físicamente"})
+
+            await _save_agent_to_db(user_id, agent_id, data, compiled)
+
+            return JsonResponse({"success": True, "id": agent_id, "message": f"Agente '{data.get('profile_name', '')}' guardado en la base de datos"})
         except Exception as e:
             return JsonResponse({"detail": str(e)}, status=400)
-            
+
     return HttpResponse(status=405)
 
 
 async def delete_custom_agent(request, agent_id: str):
     user_id = request.admin_user["id"]
     if request.method == "DELETE":
-        agents = _load_custom_agents(user_id)
-        agents = [a for a in agents if a.get("id") != agent_id]
-        _save_custom_agents(agents, user_id)
-        
-        loader = _get_prompt_loader()
-        filepath_md = os.path.join(loader.prompts_dir, f"nova_custom_{agent_id}.md")
-        if os.path.exists(filepath_md):
-            try:
-                os.remove(filepath_md)
-            except Exception:
-                pass
-        
-        # Eliminar de la base de datos
         try:
             await _db.execute("DELETE FROM admin_agents WHERE user_id = ? AND agent_id = ?", (user_id, agent_id))
-        except Exception:
-            pass
-                
+        except Exception as e:
+            return JsonResponse({"detail": str(e)}, status=400)
         return JsonResponse({"success": True})
     return HttpResponse(status=405)
 

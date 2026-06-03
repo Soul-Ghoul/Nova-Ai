@@ -149,6 +149,10 @@ class DatabaseManager:
                         await conn.execute("ALTER TABLE inventory ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT ''")
                     except Exception as _mig_err:
                         logger.debug(f"Migración PostgreSQL tags: {_mig_err}")
+                    try:
+                        await conn.execute("ALTER TABLE admin_agents ADD COLUMN IF NOT EXISTS builder_config TEXT DEFAULT '{}'")
+                    except Exception as _mig_err:
+                        logger.debug(f"Migración PostgreSQL builder_config: {_mig_err}")
                 logger.info("Base de datos PostgreSQL conectada (pool activo)")
                 return
             except Exception as e:
@@ -173,6 +177,12 @@ class DatabaseManager:
             await self._db.execute("ALTER TABLE admin_users ADD COLUMN role TEXT DEFAULT 'user'")
             await self._db.commit()
             logger.info("Migración: Columna 'role' añadida exitosamente a 'admin_users' en SQLite")
+        except Exception:
+            pass
+        try:
+            await self._db.execute("ALTER TABLE admin_agents ADD COLUMN builder_config TEXT DEFAULT '{}'")
+            await self._db.commit()
+            logger.info("Migración: Columna 'builder_config' añadida a 'admin_agents' en SQLite")
         except Exception:
             pass
         await self._rebuild_fts_index()
@@ -668,19 +678,37 @@ class DatabaseManager:
         sql = "SELECT * FROM admin_agents WHERE user_id = ? AND agent_id = ?"
         return await self.fetch_one(sql, (user_id, agent_id))
 
-    async def save_admin_agent(self, user_id: int, agent_id: str, name: str, system_prompt: str):
+    async def save_admin_agent(self, user_id: int, agent_id: str, name: str, system_prompt: str, builder_config: dict = None):
+        config_json = json.dumps(builder_config or {}, ensure_ascii=False)
         sql = """
-            INSERT INTO admin_agents (user_id, agent_id, name, system_prompt)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO admin_agents (user_id, agent_id, name, system_prompt, builder_config)
+            VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(user_id, agent_id) DO UPDATE SET
                 name = excluded.name,
-                system_prompt = excluded.system_prompt
+                system_prompt = excluded.system_prompt,
+                builder_config = excluded.builder_config
         """
-        await self.execute(sql, (user_id, agent_id, name, system_prompt))
+        await self.execute(sql, (user_id, agent_id, name, system_prompt, config_json))
 
     async def get_all_admin_agents(self, user_id: int) -> list[dict]:
-        sql = "SELECT * FROM admin_agents WHERE user_id = ? ORDER BY agent_id"
-        return await self.fetch_all(sql, (user_id,))
+        sql = "SELECT agent_id, name, system_prompt, builder_config FROM admin_agents WHERE user_id = ? ORDER BY agent_id"
+        rows = await self.fetch_all(sql, (user_id,))
+        result = []
+        for r in rows:
+            try:
+                builder = json.loads(r.get("builder_config") or "{}")
+            except Exception:
+                builder = {}
+            result.append({
+                "id": r["agent_id"],
+                "agent_id": r["agent_id"],
+                "name": r["name"],
+                "system_prompt": r["system_prompt"],
+                "profile_name": builder.get("profile_name", r["name"]),
+                "builder": builder.get("builder", {}),
+                "traits": builder.get("traits", []),
+            })
+        return result
 
     # ── AGENT DATA SOURCE ──────────────────────────────────────────────────
 

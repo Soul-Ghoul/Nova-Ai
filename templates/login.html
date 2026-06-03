@@ -8,24 +8,28 @@
     <link rel="icon" href="data:,">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
-            --bg:         #05070f;
-            --surface:    rgba(255,255,255,0.04);
-            --border:     rgba(255,255,255,0.08);
-            --border-focus: rgba(99,179,237,0.6);
-            --text-1:     #f0f4ff;
-            --text-2:     #8892a4;
-            --text-3:     #4a5568;
-            --accent:     #4f8ef7;
-            --accent-2:   #7c3aed;
-            --danger:     #fc8181;
-            --success:    #68d391;
-            --font:       'Inter', system-ui, sans-serif;
-            --ease:       cubic-bezier(0.16,1,0.3,1);
+            --bg:           #060812;
+            --card-bg:      rgba(12, 16, 32, 0.82);
+            --border:       rgba(99, 135, 255, 0.15);
+            --border-focus: rgba(99, 135, 255, 0.55);
+            --text-1:       #eef2ff;
+            --text-2:       #8896b3;
+            --text-3:       #3d4a6b;
+            --accent:       #5b7fff;
+            --accent-2:     #818cf8;
+            --accent-glow:  rgba(91, 127, 255, 0.35);
+            --danger:       #f87171;
+            --success:      #4ade80;
+            --font:         'Inter', system-ui, sans-serif;
+            --radius-card:  20px;
+            --radius-input: 10px;
+            --radius-btn:   10px;
+            --ease:         cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         html, body {
@@ -37,43 +41,12 @@
             overflow: hidden;
         }
 
-        /* ── CANVAS DE FONDO ── */
-        .bg {
+        /* ── CANVAS DE PARTÍCULAS ── */
+        #particleCanvas {
             position: fixed;
             inset: 0;
             z-index: 0;
-            background:
-                radial-gradient(ellipse 80% 60% at 20% -10%, rgba(79,142,247,0.18) 0%, transparent 60%),
-                radial-gradient(ellipse 60% 50% at 80% 110%, rgba(124,58,237,0.15) 0%, transparent 55%),
-                radial-gradient(ellipse 50% 40% at 60% 50%, rgba(16,185,129,0.06) 0%, transparent 50%),
-                #05070f;
-        }
-
-        .grid-lines {
-            position: fixed;
-            inset: 0;
-            z-index: 0;
-            background-image:
-                linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-            background-size: 60px 60px;
-            mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 0%, transparent 100%);
-        }
-
-        .orb {
-            position: fixed;
-            border-radius: 50%;
-            filter: blur(70px);
-            opacity: 0.55;
-            z-index: 0;
-        }
-        .orb-1 { width: 55vw; height: 55vw; top: -20%; left: -15%; background: radial-gradient(circle, #1e3a8a, transparent 70%); animation: drift 22s var(--ease) infinite alternate; }
-        .orb-2 { width: 40vw; height: 40vw; bottom: -20%; right: -10%; background: radial-gradient(circle, #4c1d95, transparent 70%); animation: drift 28s var(--ease) infinite alternate-reverse; }
-        .orb-3 { width: 25vw; height: 25vw; top: 40%; left: 55%; background: radial-gradient(circle, #065f46, transparent 70%); animation: drift 18s var(--ease) infinite alternate; }
-
-        @keyframes drift {
-            from { transform: translate(0,0) scale(1); }
-            to   { transform: translate(4vw, -6vh) scale(1.12); }
+            pointer-events: none;
         }
 
         /* ── LAYOUT ── */
@@ -90,89 +63,120 @@
         /* ── CARD ── */
         .card {
             width: 100%;
-            max-width: 420px;
-            background: rgba(10,14,26,0.75);
+            max-width: 400px;
+            background: var(--card-bg);
             border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 44px 40px 40px;
-            backdrop-filter: blur(32px) saturate(180%);
-            -webkit-backdrop-filter: blur(32px) saturate(180%);
+            border-radius: var(--radius-card);
+            padding: 40px 36px 36px;
+            backdrop-filter: blur(24px) saturate(160%);
+            -webkit-backdrop-filter: blur(24px) saturate(160%);
             box-shadow:
-                0 0 0 1px rgba(255,255,255,0.05) inset,
-                0 32px 80px rgba(0,0,0,0.6),
-                0 0 60px rgba(79,142,247,0.06);
-            animation: rise 0.7s var(--ease) both;
+                0 0 0 1px rgba(255,255,255,0.04) inset,
+                0 24px 64px rgba(0,0,0,0.55),
+                0 0 80px rgba(91,127,255,0.07);
+            animation: cardIn 0.65s var(--ease) both;
         }
 
-        @keyframes rise {
-            from { opacity: 0; transform: translateY(28px) scale(0.97); }
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(24px) scale(0.97); }
             to   { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* ── HEADER ── */
-        .header {
+        /* ── LOGO ── */
+        .logo-area {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 16px;
-            margin-bottom: 36px;
+            gap: 14px;
+            margin-bottom: 32px;
             text-align: center;
         }
 
-        .logo-ring {
-            width: 56px;
-            height: 56px;
+        .logo-icon-wrap {
+            position: relative;
+            width: 58px;
+            height: 58px;
+        }
+
+        .logo-icon-wrap::before {
+            content: '';
+            position: absolute;
+            inset: -8px;
+            border-radius: 20px;
+            background: radial-gradient(circle, rgba(91,127,255,0.2), transparent 70%);
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.12); opacity: 1; }
+        }
+
+        .logo-icon-inner {
+            width: 58px;
+            height: 58px;
             border-radius: 16px;
-            background: linear-gradient(135deg, rgba(79,142,247,0.2), rgba(124,58,237,0.2));
-            border: 1px solid rgba(79,142,247,0.3);
+            background: linear-gradient(135deg, rgba(91,127,255,0.18), rgba(129,140,248,0.12));
+            border: 1px solid rgba(91,127,255,0.3);
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 24px rgba(79,142,247,0.2);
         }
 
-        .logo-ring svg { width: 28px; height: 28px; }
+        .logo-icon-inner svg { width: 28px; height: 28px; }
 
-        .brand-name {
-            font-size: 1.7rem;
+        .logo-title {
+            font-size: 1.65rem;
             font-weight: 700;
             letter-spacing: -0.04em;
-            background: linear-gradient(135deg, #e0eaff 0%, #a8c7fa 50%, #c4b5fd 100%);
+            line-height: 1;
+            background: linear-gradient(130deg, #c7d2fe 0%, #818cf8 45%, #a5b4fc 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            line-height: 1;
         }
 
-        .brand-sub {
-            font-size: 0.82rem;
-            color: var(--text-2);
+        .logo-sub {
+            font-size: 0.8rem;
             font-weight: 400;
+            color: var(--text-2);
             letter-spacing: 0.01em;
         }
 
         /* ── DIVIDER ── */
-        .divider {
+        .section-label {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 28px;
+            gap: 10px;
+            margin-bottom: 22px;
         }
-        .divider-line { flex: 1; height: 1px; background: var(--border); }
-        .divider-text { font-size: 0.75rem; color: var(--text-3); white-space: nowrap; }
+        .section-label::before,
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+        .section-label span {
+            font-size: 0.73rem;
+            color: var(--text-3);
+            white-space: nowrap;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
 
         /* ── FORM ── */
-        .form-field {
-            margin-bottom: 16px;
+        .field {
+            margin-bottom: 14px;
         }
 
-        .field-label {
+        .field label {
             display: block;
-            font-size: 0.78rem;
-            font-weight: 500;
+            font-size: 0.76rem;
+            font-weight: 600;
             color: var(--text-2);
-            margin-bottom: 7px;
-            letter-spacing: 0.02em;
+            margin-bottom: 6px;
+            letter-spacing: 0.03em;
             text-transform: uppercase;
         }
 
@@ -181,40 +185,40 @@
         }
 
         .input-wrap input {
+            display: block;
             width: 100%;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid var(--border);
-            border-radius: 12px;
+            background: rgba(0,0,0,0.28);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: var(--radius-input);
             color: var(--text-1);
             font-family: var(--font);
-            font-size: 0.95rem;
-            padding: 13px 16px;
+            font-size: 0.92rem;
+            font-weight: 400;
+            padding: 11px 14px;
             outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
         }
 
         .input-wrap input:focus {
             border-color: var(--border-focus);
-            background: rgba(0,0,0,0.5);
-            box-shadow: 0 0 0 3px rgba(99,179,237,0.12);
+            background: rgba(0,0,0,0.42);
+            box-shadow: 0 0 0 3px rgba(91,127,255,0.14), 0 0 16px rgba(91,127,255,0.08);
         }
 
         .input-wrap input::placeholder {
             color: var(--text-3);
+            font-weight: 400;
         }
 
-        .input-wrap.has-icon input {
-            padding-right: 46px;
-        }
-
-        .input-icon {
-            position: absolute;
-            top: 50%;
-            right: 13px;
-            transform: translateY(-50%);
+        .input-wrap.has-eye input {
+            padding-right: 44px;
         }
 
         .btn-eye {
+            position: absolute;
+            top: 50%;
+            right: 11px;
+            transform: translateY(-50%);
             background: none;
             border: none;
             padding: 4px;
@@ -222,137 +226,155 @@
             color: var(--text-3);
             display: flex;
             align-items: center;
+            justify-content: center;
             border-radius: 6px;
-            transition: color 0.15s;
+            transition: color 0.15s, background 0.15s;
         }
-        .btn-eye:hover { color: var(--text-2); }
-        .btn-eye svg { width: 18px; height: 18px; }
+        .btn-eye:hover { color: var(--text-2); background: rgba(255,255,255,0.06); }
+        .btn-eye svg { width: 16px; height: 16px; }
 
         /* ── ERROR ── */
         .error-box {
             display: none;
             align-items: center;
-            gap: 10px;
-            background: rgba(252,129,129,0.08);
-            border: 1px solid rgba(252,129,129,0.2);
-            border-radius: 10px;
-            padding: 11px 14px;
-            margin-bottom: 20px;
-            font-size: 0.84rem;
+            gap: 9px;
+            background: rgba(248,113,113,0.08);
+            border: 1px solid rgba(248,113,113,0.2);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 16px;
+            font-size: 0.82rem;
             color: var(--danger);
+        }
+        .error-box.show {
+            display: flex;
             animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
         }
-        .error-box.visible { display: flex; }
+        .error-box svg { flex-shrink: 0; }
 
         @keyframes shake {
             10%, 90% { transform: translate3d(-1px,0,0); }
             20%, 80% { transform: translate3d(2px,0,0); }
-            30%, 50%, 70% { transform: translate3d(-3px,0,0); }
-            40%, 60% { transform: translate3d(3px,0,0); }
+            30%,50%,70% { transform: translate3d(-3px,0,0); }
+            40%,60% { transform: translate3d(3px,0,0); }
         }
 
-        /* ── SUBMIT ── */
+        /* ── SUBMIT BUTTON ── */
         .btn-submit {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
             width: 100%;
-            padding: 14px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, var(--accent), #6366f1);
+            padding: 12px 20px;
+            border-radius: var(--radius-btn);
+            background: linear-gradient(135deg, #4f6fe0, #6366f1 50%, #818cf8);
+            background-size: 200% 200%;
             color: #fff;
             font-family: var(--font);
             font-weight: 600;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
+            letter-spacing: 0.01em;
             border: none;
             cursor: pointer;
-            transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
-            margin-top: 8px;
-            box-shadow: 0 4px 20px rgba(79,142,247,0.3);
-            letter-spacing: 0.01em;
+            transition: opacity 0.2s, transform 0.15s, box-shadow 0.25s, background-position 0.4s;
+            margin-top: 20px;
+            box-shadow: 0 4px 20px rgba(91,127,255,0.3), 0 1px 0 rgba(255,255,255,0.12) inset;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-submit::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 60%);
+            pointer-events: none;
         }
 
         .btn-submit:hover:not(:disabled) {
-            opacity: 0.92;
             transform: translateY(-1px);
-            box-shadow: 0 8px 28px rgba(79,142,247,0.4);
+            box-shadow: 0 8px 30px rgba(91,127,255,0.45);
+            background-position: 100% 0;
         }
 
         .btn-submit:active:not(:disabled) {
-            transform: translateY(0) scale(0.98);
+            transform: translateY(1px) scale(0.99);
+            box-shadow: 0 2px 12px rgba(91,127,255,0.3);
         }
 
         .btn-submit:disabled {
-            opacity: 0.55;
+            opacity: 0.6;
             cursor: not-allowed;
         }
 
-        .btn-submit .spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,0.4);
+        .spinner {
+            width: 15px;
+            height: 15px;
+            border: 2px solid rgba(255,255,255,0.3);
             border-top-color: #fff;
             border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-            vertical-align: middle;
-            margin-right: 8px;
+            animation: spin 0.65s linear infinite;
+            flex-shrink: 0;
         }
-
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .footer-note {
-            margin-top: 24px;
-            text-align: center;
-            font-size: 0.75rem;
+        /* ── FOOTER ── */
+        .card-footer {
+            margin-top: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 0.73rem;
             color: var(--text-3);
         }
+        .card-footer svg { width: 12px; height: 12px; opacity: 0.6; }
 
         @media (max-width: 480px) {
-            .card { padding: 32px 24px 28px; }
+            .card { padding: 30px 22px 26px; }
         }
     </style>
 </head>
 <body>
-    <div class="bg"></div>
-    <div class="grid-lines"></div>
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
+
+    <canvas id="particleCanvas"></canvas>
 
     <div class="page">
         <div class="card">
 
-            <div class="header">
-                <div class="logo-ring">
-                    <svg viewBox="0 0 28 28" fill="none">
-                        <circle cx="14" cy="14" r="12.5" stroke="url(#g1)" stroke-width="1.5"/>
-                        <path d="M10 19V9l10 5-10 5z" fill="url(#g1)"/>
-                        <defs>
-                            <linearGradient id="g1" x1="0" y1="0" x2="28" y2="28">
-                                <stop offset="0%" stop-color="#a8c7fa"/>
-                                <stop offset="100%" stop-color="#c4b5fd"/>
-                            </linearGradient>
-                        </defs>
-                    </svg>
+            <div class="logo-area">
+                <div class="logo-icon-wrap">
+                    <div class="logo-icon-inner">
+                        <svg viewBox="0 0 28 28" fill="none">
+                            <circle cx="14" cy="14" r="12" stroke="url(#gLogo)" stroke-width="1.4"/>
+                            <path d="M10.5 19V9l9 5-9 5z" fill="url(#gLogo)"/>
+                            <defs>
+                                <linearGradient id="gLogo" x1="0" y1="0" x2="28" y2="28">
+                                    <stop offset="0%" stop-color="#818cf8"/>
+                                    <stop offset="100%" stop-color="#c7d2fe"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
                 </div>
                 <div>
-                    <div class="brand-name">Nova</div>
-                    <div class="brand-sub">Panel de Administración</div>
+                    <div class="logo-title">Nova</div>
+                    <div class="logo-sub">Panel de Administración</div>
                 </div>
             </div>
 
-            <div class="divider">
-                <div class="divider-line"></div>
-                <span class="divider-text">Inicia sesión para continuar</span>
-                <div class="divider-line"></div>
+            <div class="section-label"><span>Acceso seguro</span></div>
+
+            <div class="error-box" id="errorBox" role="alert">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span id="errorMsg"></span>
             </div>
 
-            <div id="loginError" class="error-box" role="alert">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <span id="loginErrorMsg"></span>
-            </div>
+            <form id="loginForm" onsubmit="handleLogin(event)" novalidate autocomplete="on">
 
-            <form id="loginForm" onsubmit="handleLogin(event)" novalidate>
-                <div class="form-field">
-                    <label class="field-label" for="identifier">Usuario o correo electrónico</label>
+                <div class="field">
+                    <label for="identifier">Usuario o correo</label>
                     <div class="input-wrap">
                         <input
                             type="text"
@@ -367,9 +389,9 @@
                     </div>
                 </div>
 
-                <div class="form-field">
-                    <label class="field-label" for="password">Contraseña</label>
-                    <div class="input-wrap has-icon">
+                <div class="field">
+                    <label for="password">Contraseña</label>
+                    <div class="input-wrap has-eye">
                         <input
                             type="password"
                             id="password"
@@ -378,23 +400,23 @@
                             required
                             placeholder="••••••••"
                         >
-                        <span class="input-icon">
-                            <button type="button" class="btn-eye" id="btnTogglePwd" aria-label="Mostrar contraseña">
-                                <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                    <circle cx="12" cy="12" r="3"/>
-                                </svg>
-                            </button>
-                        </span>
+                        <button type="button" class="btn-eye" id="btnEye" aria-label="Mostrar contraseña">
+                            <svg id="eyeSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
 
                 <button type="submit" id="btnLogin" class="btn-submit">
-                    Iniciar sesión
+                    <span id="btnLabel">Iniciar sesión</span>
                 </button>
+
             </form>
 
-            <div class="footer-note">
+            <div class="card-footer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 Acceso restringido — Solo administradores
             </div>
 
@@ -402,61 +424,236 @@
     </div>
 
     <script>
-        const pwdInput  = document.getElementById('password');
-        const eyeBtn    = document.getElementById('btnTogglePwd');
-        const eyeIcon   = document.getElementById('eyeIcon');
+    /* ══════════════════════════════════════════════
+       SISTEMA DE PARTÍCULAS (reacciona al mouse)
+    ══════════════════════════════════════════════ */
+    (function () {
+        const canvas  = document.getElementById('particleCanvas');
+        const ctx     = canvas.getContext('2d');
+        let W, H, particles, animId;
 
-        const EYE_OPEN  = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
-        const EYE_SLASH = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+        const CFG = {
+            count:        110,
+            baseRadius:   1.6,
+            speed:        0.38,
+            connectDist:  140,
+            mouseRadius:  160,
+            mouseForce:   0.045,
+            colors:       ['#5b7fff', '#818cf8', '#a5b4fc', '#c7d2fe', '#6366f1'],
+            lineAlpha:    0.18,
+        };
 
-        eyeBtn.addEventListener('click', () => {
-            const show = pwdInput.type === 'password';
-            pwdInput.type = show ? 'text' : 'password';
-            eyeIcon.innerHTML = show ? EYE_SLASH : EYE_OPEN;
-            eyeBtn.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        const mouse = { x: -9999, y: -9999 };
+
+        window.addEventListener('mousemove', e => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
         });
+        window.addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
 
-        async function handleLogin(event) {
-            event.preventDefault();
-            const btn       = document.getElementById('btnLogin');
-            const errBox    = document.getElementById('loginError');
-            const errMsg    = document.getElementById('loginErrorMsg');
-            const identifier = document.getElementById('identifier').value.trim();
+        function resize() {
+            W = canvas.width  = window.innerWidth;
+            H = canvas.height = window.innerHeight;
+        }
 
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span>Ingresando…';
-            errBox.classList.remove('visible');
+        class Particle {
+            constructor() { this.reset(true); }
 
-            try {
-                const response = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        username: identifier,
-                        password: pwdInput.value
-                    })
-                });
-
-                const data = await response.json();
-                if (response.ok && data.success) {
-                    btn.innerHTML = '✓ Accediendo…';
-                    window.location.reload();
-                } else {
-                    errMsg.textContent = data.detail || 'Credenciales incorrectas. Intenta de nuevo.';
-                    errBox.classList.remove('visible');
-                    void errBox.offsetWidth;
-                    errBox.classList.add('visible');
+            reset(init = false) {
+                this.x  = Math.random() * W;
+                this.y  = Math.random() * H;
+                this.vx = (Math.random() - 0.5) * CFG.speed;
+                this.vy = (Math.random() - 0.5) * CFG.speed;
+                this.r  = CFG.baseRadius * (0.5 + Math.random() * 1.1);
+                this.color = CFG.colors[Math.floor(Math.random() * CFG.colors.length)];
+                this.alpha = 0.3 + Math.random() * 0.55;
+                this.baseAlpha = this.alpha;
+                if (init) {
+                    this.x = Math.random() * W;
+                    this.y = Math.random() * H;
                 }
-            } catch {
-                errMsg.textContent = 'Error de red. Verifica tu conexión e intenta de nuevo.';
-                errBox.classList.add('visible');
-            } finally {
-                if (btn.disabled) {
-                    btn.disabled = false;
-                    btn.innerHTML = 'Iniciar sesión';
+            }
+
+            update() {
+                const dx    = mouse.x - this.x;
+                const dy    = mouse.y - this.y;
+                const dist  = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < CFG.mouseRadius && dist > 0) {
+                    const force  = (CFG.mouseRadius - dist) / CFG.mouseRadius;
+                    const angle  = Math.atan2(dy, dx);
+                    const push   = force * CFG.mouseForce * (CFG.mouseRadius / Math.max(dist, 1));
+                    this.vx     -= Math.cos(angle) * push;
+                    this.vy     -= Math.sin(angle) * push;
+                    this.alpha   = Math.min(1, this.baseAlpha + force * 0.6);
+                } else {
+                    this.alpha += (this.baseAlpha - this.alpha) * 0.04;
+                }
+
+                // Damping
+                this.vx *= 0.985;
+                this.vy *= 0.985;
+
+                // Drift back to base speed
+                const spd = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                if (spd < CFG.speed * 0.3) {
+                    this.vx += (Math.random() - 0.5) * 0.03;
+                    this.vy += (Math.random() - 0.5) * 0.03;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Wrap edges
+                if (this.x < -20) this.x = W + 20;
+                if (this.x > W + 20) this.x = -20;
+                if (this.y < -20) this.y = H + 20;
+                if (this.y > H + 20) this.y = -20;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 6;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function buildParticles() {
+            particles = Array.from({ length: CFG.count }, () => new Particle());
+        }
+
+        function drawConnections() {
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const a = particles[i];
+                    const b = particles[j];
+                    const dx = a.x - b.x;
+                    const dy = a.y - b.y;
+                    const d  = Math.sqrt(dx * dx + dy * dy);
+                    if (d > CFG.connectDist) continue;
+
+                    const alpha = CFG.lineAlpha * (1 - d / CFG.connectDist);
+
+                    const grd = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+                    grd.addColorStop(0, a.color);
+                    grd.addColorStop(1, b.color);
+
+                    ctx.save();
+                    ctx.globalAlpha = alpha;
+                    ctx.strokeStyle = grd;
+                    ctx.lineWidth   = 0.65;
+                    ctx.beginPath();
+                    ctx.moveTo(a.x, a.y);
+                    ctx.lineTo(b.x, b.y);
+                    ctx.stroke();
+                    ctx.restore();
                 }
             }
         }
+
+        function drawMouseGlow() {
+            if (mouse.x < 0 || mouse.x > W) return;
+            const grd = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, CFG.mouseRadius);
+            grd.addColorStop(0, 'rgba(91,127,255,0.08)');
+            grd.addColorStop(1, 'rgba(91,127,255,0)');
+            ctx.save();
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.arc(mouse.x, mouse.y, CFG.mouseRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function loop() {
+            ctx.clearRect(0, 0, W, H);
+            drawMouseGlow();
+            drawConnections();
+            particles.forEach(p => { p.update(); p.draw(); });
+            animId = requestAnimationFrame(loop);
+        }
+
+        function init() {
+            resize();
+            buildParticles();
+            cancelAnimationFrame(animId);
+            loop();
+        }
+
+        window.addEventListener('resize', () => {
+            resize();
+            buildParticles();
+        });
+
+        init();
+    })();
+
+    /* ══════════════════════════════════════════════
+       PASSWORD TOGGLE
+    ══════════════════════════════════════════════ */
+    const pwdInput = document.getElementById('password');
+    const eyeBtn   = document.getElementById('btnEye');
+    const eyeSvg   = document.getElementById('eyeSvg');
+
+    const EYE_OPEN  = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+    const EYE_SLASH = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+
+    eyeBtn.addEventListener('click', () => {
+        const show = pwdInput.type === 'password';
+        pwdInput.type = show ? 'text' : 'password';
+        eyeSvg.innerHTML = show ? EYE_SLASH : EYE_OPEN;
+        eyeBtn.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        pwdInput.focus();
+    });
+
+    /* ══════════════════════════════════════════════
+       LOGIN HANDLER
+    ══════════════════════════════════════════════ */
+    async function handleLogin(event) {
+        event.preventDefault();
+        const btn        = document.getElementById('btnLogin');
+        const label      = document.getElementById('btnLabel');
+        const errorBox   = document.getElementById('errorBox');
+        const errorMsg   = document.getElementById('errorMsg');
+        const identifier = document.getElementById('identifier').value.trim();
+        const password   = pwdInput.value;
+
+        errorBox.classList.remove('show');
+        btn.disabled = true;
+        label.innerHTML = '<span class="spinner"></span>Ingresando…';
+
+        try {
+            const res  = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: identifier, password })
+            });
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                label.textContent = '✓ Bienvenido';
+                btn.style.background = 'linear-gradient(135deg, #059669, #10b981)';
+                setTimeout(() => window.location.reload(), 350);
+            } else {
+                errorMsg.textContent = data.detail || 'Credenciales incorrectas. Intenta de nuevo.';
+                errorBox.classList.remove('show');
+                void errorBox.offsetWidth;
+                errorBox.classList.add('show');
+                btn.disabled = false;
+                label.textContent = 'Iniciar sesión';
+            }
+        } catch {
+            errorMsg.textContent = 'Error de red. Verifica tu conexión.';
+            errorBox.classList.add('show');
+            btn.disabled = false;
+            label.textContent = 'Iniciar sesión';
+        }
+    }
     </script>
 </body>
 </html>
