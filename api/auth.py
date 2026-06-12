@@ -84,7 +84,14 @@ async def check_session_handler(request):
     if not token:
         return JsonResponse({"authenticated": False})
 
-    user = await db.validate_session_token(token)
+    try:
+        user = await db.validate_session_token(token)
+    except Exception as e:
+        return JsonResponse({
+            "authenticated": False,
+            "error": f"Error de base de datos: {str(e)}"
+        }, status=500)
+
     if not user:
         response = JsonResponse({"authenticated": False})
         response.delete_cookie("session_token", path="/")

@@ -135,6 +135,7 @@ VENDOR_SUPPORT_BLOCK = """INSTRUCCIONES DE SOPORTE A VENDEDORES:
 class PromptLoader:
     def __init__(self):
         self.prompts_dir = get_settings().prompts_dir
+        self._prompt_config_cache: dict[int, dict] = {}
         self._bootstrap_default()
 
     def _bootstrap_default(self):
@@ -145,7 +146,7 @@ class PromptLoader:
             logger.info("Bootstrap: nova_default.yaml creado desde nova_default_base.yaml")
 
         presets = {
-            "sales": {
+            "ventas": {
                 "name": "Nova",
                 "company": "la empresa",
                 "role": "asistente de ventas",
@@ -157,7 +158,7 @@ class PromptLoader:
                 "rules": ["character_lock", "no_hallucinations", "synonym_search"],
                 "custom_instructions": ""
             },
-            "support": {
+            "soporte": {
                 "name": "Nova",
                 "company": "la empresa",
                 "role": "agente de soporte técnico",
@@ -169,7 +170,7 @@ class PromptLoader:
                 "rules": ["character_lock", "no_hallucinations", "cross_validation"],
                 "custom_instructions": "Guía al usuario paso a paso para resolver su problema. Si no puedes resolverlo, ofrece transferir con un especialista."
             },
-            "finance": {
+            "finanzas": {
                 "name": "Nova",
                 "company": "la empresa",
                 "role": "asistente del departamento de finanzas",
@@ -181,7 +182,7 @@ class PromptLoader:
                 "rules": ["character_lock", "no_hallucinations", "no_personal_data", "cross_validation"],
                 "custom_instructions": "Maneja toda información financiera con extrema precisión. Siempre confirma montos y datos antes de proceder."
             },
-            "attention": {
+            "atencion": {
                 "name": "Nova",
                 "company": "la empresa",
                 "role": "recepcionista virtual de atención telefónica",
@@ -193,7 +194,7 @@ class PromptLoader:
                 "rules": ["character_lock", "no_hallucinations", "cross_validation"],
                 "custom_instructions": "Tu prioridad es identificar rápidamente con quién o con qué departamento necesita hablar el usuario y transferirlo eficientemente."
             },
-            "technical": {
+            "tecnico": {
                 "name": "Nova",
                 "company": "la empresa",
                 "role": "ingeniero de soporte técnico avanzado",
@@ -262,143 +263,99 @@ class PromptLoader:
             return str(_PROJECT_ROOT / "data" / f"custom_agents_{user_id}.json")
         return str(_PROJECT_ROOT / "data" / "custom_agents.json")
 
+    def set_prompt_config_cache(self, user_id: int, config: dict | None):
+        if config is None:
+            self._prompt_config_cache.pop(user_id, None)
+            return
+        self._prompt_config_cache[user_id] = dict(config)
+
+    def get_prompt_config_cache(self, user_id: int) -> dict | None:
+        cached = self._prompt_config_cache.get(user_id)
+        if cached is None:
+            return None
+        return dict(cached)
+
     def load(self, prompt_name: str = "nova_default", user_id: int | None = None) -> str:
-        mode = "none"
-        agent_id = None
-        agent_source = "preset"
+        """Carga el prompt activo. Prioriza config guardada; luego archivos."""
+        config_data = None
 
-        config_path = self._get_config_path(user_id)
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, "r", encoding="utf-8") as f:
-                    config = json.load(f)
-                mode = config.get("mode", "none")
-                agent_id = config.get("agent_id")
-                agent_source = config.get("agent_source", "preset")
-            except Exception as e:
-                logger.warning(f"Error leyendo config en {config_path}: {e}")
-
-        filepath = None
-        if mode == "raw":
-            if user_id:
-                filepath = os.path.join(self.prompts_dir, f"nova_default_{user_id}.yaml")
-                if not os.path.exists(filepath):
-                    filepath = os.path.join(self.prompts_dir, "nova_default.yaml")
-            else:
-                filepath = os.path.join(self.prompts_dir, "nova_default.yaml")
-        elif mode == "builder":
-            filepath = os.path.join(self.prompts_dir, f"nova_builder_{user_id}.md" if user_id else "nova_builder.md")
-            should_recompile = False
-            if os.path.exists(filepath):
-                try:
-                    with open(filepath, "r", encoding="utf-8") as f:
-                        fc = f.read()
-                    if "INSTRUCCIONES DE INVENTARIO Y VENTAS:" in fc and "más el 16% de iva?" not in fc.lower():
-                        should_recompile = True
-                except Exception:
-                    pass
-            if (not os.path.exists(filepath) or should_recompile) and os.path.exists(config_path):
-                try:
-                    with open(config_path, "r", encoding="utf-8") as f:
-                        config = json.load(f)
-                    builder = config.get("builder", {})
-                    if builder:
-                        compiled = self._build_from_config(builder)
-                        with open(filepath, "w", encoding="utf-8") as f2:
-                            f2.write(compiled)
-                        logger.info(f"PromptLoader: Re-compilado prompt del builder por desactualización: {filepath}")
-                except Exception as e:
-                    logger.error(f"Error re-compilando prompt del builder: {e}")
-        elif mode == "agent":
-            if agent_source == "custom" and agent_id:
-                filepath = os.path.join(self.prompts_dir, f"nova_custom_{agent_id}.md")
-                should_recompile = False
-                if os.path.exists(filepath):
+        if user_id is not None:
+            config_data = self.get_prompt_config_cache(user_id)
+            if config_data is None:
+                config_path = self._get_config_path(user_id)
+                if os.path.exists(config_path):
                     try:
-                        with open(filepath, "r", encoding="utf-8") as f:
-                            fc = f.read()
-                        if "INSTRUCCIONES DE INVENTARIO Y VENTAS:" in fc and "más el 16% de iva?" not in fc.lower():
-                            should_recompile = True
-                    except Exception:
-                        pass
-                if not os.path.exists(filepath) or should_recompile:
-                    try:
-                        custom_agents_path = self._get_custom_agents_path(user_id)
-                        if os.path.exists(custom_agents_path):
-                            with open(custom_agents_path, "r", encoding="utf-8") as f2:
-                                agents = json.load(f2)
-                            agent_data = next((a for a in agents if a.get("id") == agent_id), None)
-                            if agent_data and agent_data.get("builder"):
-                                compiled = self._build_from_config(agent_data["builder"])
-                                with open(filepath, "w", encoding="utf-8") as f3:
-                                    f3.write(compiled)
-                                logger.info(f"Auto-recuperación/Recompilación exitosa para prompt de agente personalizado: {filepath}")
+                        with open(config_path, "r", encoding="utf-8") as f:
+                            config_data = json.load(f)
+                        self.set_prompt_config_cache(user_id, config_data)
+                        logger.info(f"Config cargada desde archivo para user_id={user_id} (modo={config_data.get('mode', 'none')})")
                     except Exception as e:
-                        logger.warning(f"No se pudo auto-recuperar/recompilar el prompt del agente personalizado: {e}")
-            else:
-                if agent_id and user_id:
-                    filepath_user_yaml = os.path.join(self.prompts_dir, f"nova_{agent_id}_{user_id}.yaml")
-                    should_recompile_yaml = False
-                    if os.path.exists(filepath_user_yaml):
-                        try:
-                            with open(filepath_user_yaml, "r", encoding="utf-8") as f:
-                                fc = f.read()
-                            if "INSTRUCCIONES DE INVENTARIO Y VENTAS:" in fc and "más el 16% de iva?" not in fc.lower():
-                                should_recompile_yaml = True
-                        except Exception:
-                            pass
-                        
-                        if should_recompile_yaml:
-                            try:
-                                import yaml
-                                with open(filepath_user_yaml, "r", encoding="utf-8") as f:
-                                    data = yaml.safe_load(f)
-                                builder = {
-                                    "identity": {
-                                        "name": data.get("name", "Nova"),
-                                        "company": data.get("company", "la empresa"),
-                                        "role": data.get("role", "asistente")
-                                    },
-                                    "greeting": data.get("greeting", ""),
-                                    "language": data.get("language", "es"),
-                                    "tone": data.get("tone", "friendly"),
-                                    "personality": data.get("personality", []),
-                                    "capabilities": data.get("capabilities", []),
-                                    "rules": data.get("rules", []),
-                                    "custom_instructions": data.get("custom_instructions", "")
-                                }
-                                compiled = self._build_from_config(builder)
-                                data["system_prompt"] = compiled
-                                with open(filepath_user_yaml, "w", encoding="utf-8") as f:
-                                    yaml.safe_dump(data, f, allow_unicode=True, default_flow_style=False)
-                                logger.info(f"PromptLoader: Recompilado preset de usuario desactualizado: {filepath_user_yaml}")
-                            except Exception as e:
-                                logger.error(f"Error recompilando preset de usuario: {e}")
-                        
-                        filepath = filepath_user_yaml
-                
-                if not filepath:
-                    filepath_yaml = os.path.join(self.prompts_dir, f"nova_{agent_id}.yaml")
-                    if agent_id and os.path.exists(filepath_yaml):
-                        filepath = filepath_yaml
-                    else:
-                        filepath = os.path.join(self.prompts_dir, "nova_agent.md")
+                        logger.warning(f"Error leyendo config en {config_path}: {e}")
 
-        if not filepath or not os.path.exists(filepath):
-            if user_id:
-                filepath_user_yaml = os.path.join(self.prompts_dir, f"{prompt_name}_{user_id}.yaml")
-                filepath_user_md   = os.path.join(self.prompts_dir, f"{prompt_name}_{user_id}.md")
-                if os.path.exists(filepath_user_yaml):
-                    filepath = filepath_user_yaml
-                elif os.path.exists(filepath_user_md):
-                    filepath = filepath_user_md
+        if isinstance(config_data, dict):
+            compiled = self._load_from_config(config_data, user_id)
+            if compiled:
+                return compiled
 
-            if not filepath or not os.path.exists(filepath):
-                filepath_yaml = os.path.join(self.prompts_dir, f"{prompt_name}.yaml")
-                filepath_md   = os.path.join(self.prompts_dir, f"{prompt_name}.md")
-                filepath      = filepath_yaml if os.path.exists(filepath_yaml) else filepath_md
+        return self._load_prompt_file(prompt_name, user_id)
 
-        if not os.path.exists(filepath):
+    def _load_from_config(self, config_data: dict, user_id: int | None) -> str:
+        """Compone el prompt desde la configuración guardada."""
+        mode = config_data.get("mode", "none")
+
+        if mode == "raw":
+            raw_content = (config_data.get("raw_content") or "").strip()
+            if raw_content:
+                return raw_content
+
+        if mode == "builder":
+            builder = config_data.get("builder", {}) or {}
+            if builder:
+                return self._build_from_config(builder)
+
+        if mode == "agent":
+            agent_id = config_data.get("agent_id")
+            agent_source = config_data.get("agent_source", "preset")
+            agent_builder = config_data.get("agent_builder", {}) or config_data.get("builder", {}) or {}
+            
+            is_odoo = bool(agent_id and (agent_id.startswith("odoo_") or "odoo_" in agent_id))
+            has_builder_traits = bool(agent_builder and (agent_builder.get("personality") or agent_builder.get("capabilities") or agent_builder.get("identity")))
+            
+            if agent_source == "preset" and agent_id and (is_odoo or not has_builder_traits):
+                preset_prompt = self._load_prompt_file(f"nova_{agent_id}", user_id)
+                if preset_prompt:
+                    return preset_prompt
+            
+            if agent_builder and has_builder_traits:
+                compiled = self._build_from_config(agent_builder)
+                if compiled:
+                    return compiled
+            
+            if agent_id:
+                preset_prompt = self._load_prompt_file(f"nova_{agent_id}", user_id)
+                if preset_prompt:
+                    return preset_prompt
+
+        return ""
+
+    def _load_prompt_file(self, prompt_name: str, user_id: int | None) -> str:
+        filepath = None
+
+        if user_id is not None:
+            for suffix in (".yaml", ".md"):
+                candidate = os.path.join(self.prompts_dir, f"{prompt_name}_{user_id}{suffix}")
+                if os.path.exists(candidate):
+                    filepath = candidate
+                    break
+
+        if not filepath:
+            for suffix in (".yaml", ".md"):
+                candidate = os.path.join(self.prompts_dir, f"{prompt_name}{suffix}")
+                if os.path.exists(candidate):
+                    filepath = candidate
+                    break
+
+        if not filepath:
             base_yaml = os.path.join(self.prompts_dir, "nova_default_base.yaml")
             if os.path.exists(base_yaml):
                 filepath = base_yaml
@@ -406,37 +363,19 @@ class PromptLoader:
                 logger.warning("Ningún archivo de prompt encontrado, usando fallback")
                 return "Eres un asistente de voz profesional. Responde en español."
 
-        with open(filepath, "r", encoding="utf-8") as f:
-            content = f.read()
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                content = f.read()
+        except Exception as e:
+            logger.error(f"Error leyendo prompt desde {filepath}: {e}")
+            return "Eres un asistente de voz profesional. Responde en español."
 
         if filepath.endswith(".yaml"):
             try:
                 import yaml
                 data = yaml.safe_load(content)
                 if isinstance(data, dict) and "system_prompt" in data:
-                    system_prompt_str = data["system_prompt"]
-                    if "INSTRUCCIONES DE INVENTARIO Y VENTAS:" in system_prompt_str and "más el 16% de iva?" not in system_prompt_str.lower():
-                        builder = {
-                            "identity": {
-                                "name": data.get("name", "Nova"),
-                                "company": data.get("company", "la empresa"),
-                                "role": data.get("role", "asistente")
-                            },
-                            "greeting": data.get("greeting", ""),
-                            "language": data.get("language", "es"),
-                            "tone": data.get("tone", "friendly"),
-                            "personality": data.get("personality", []),
-                            "capabilities": data.get("capabilities", []),
-                            "rules": data.get("rules", []),
-                            "custom_instructions": data.get("custom_instructions", "")
-                        }
-                        compiled = self._build_from_config(builder)
-                        data["system_prompt"] = compiled
-                        with open(filepath, "w", encoding="utf-8") as f_out:
-                            yaml.safe_dump(data, f_out, allow_unicode=True, default_flow_style=False)
-                        logger.info(f"PromptLoader: Recompilado archivo preset yaml por desactualización: {filepath}")
-                        return compiled
-                    return system_prompt_str
+                    return data["system_prompt"]
             except Exception as e:
                 logger.warning(f"Error analizando estructura YAML del prompt: {e}")
 
@@ -497,25 +436,42 @@ class PromptLoader:
         return "\n".join(lines)
 
     def get_voice(self, user_id: int | None = None) -> str:
-        config_path = self._get_config_path(user_id)
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, "r", encoding="utf-8") as f:
-                    config = json.load(f)
-                if config.get("use_custom") or config.get("mode") in ("builder", "agent", "raw"):
-                    return config.get("voice", "Aoede")
-            except Exception:
-                pass
-        return "Aoede"
+        valid_voices = {"Aoede", "Charon", "Fenrir", "Kore", "Puck"}
+        voice = "Aoede"
+        has_voice = False
+        if user_id is not None:
+            cached = self.get_prompt_config_cache(user_id)
+            if cached and (cached.get("use_custom") or cached.get("mode") in ("builder", "agent", "raw")):
+                voice = cached.get("voice", "Aoede")
+                has_voice = True
+        if not has_voice:
+            config_path = self._get_config_path(user_id)
+            if os.path.exists(config_path):
+                try:
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        config = json.load(f)
+                    if config.get("use_custom") or config.get("mode") in ("builder", "agent", "raw"):
+                        voice = config.get("voice", "Aoede")
+                except Exception:
+                    pass
+        if voice not in valid_voices:
+            return "Aoede"
+        return voice
 
     def get_db_language(self, user_id: int | None = None) -> str:
+        if user_id is not None:
+            cached = self.get_prompt_config_cache(user_id)
+            if cached and (cached.get("use_custom") or cached.get("mode") in ("builder", "agent", "raw")):
+                builder = cached.get("builder", {}) or cached.get("agent_builder", {})
+                if builder:
+                    return builder.get("db_language", "es")
         config_path = self._get_config_path(user_id)
         if os.path.exists(config_path):
             try:
                 with open(config_path, "r", encoding="utf-8") as f:
                     config = json.load(f)
                 if config.get("use_custom") or config.get("mode") in ("builder", "agent", "raw"):
-                    builder = config.get("builder", {})
+                    builder = config.get("builder", {}) or config.get("agent_builder", {})
                     if builder:
                         return builder.get("db_language", "es")
             except Exception:

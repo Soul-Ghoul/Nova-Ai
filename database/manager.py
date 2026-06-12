@@ -136,7 +136,7 @@ class DatabaseManager:
                 self._db = await asyncpg.create_pool(
                     self.postgres_url,
                     min_size=2,
-                    max_size=10,
+                    max_size=20,
                     command_timeout=30,
                 )
                 async with self._db.acquire() as conn:
@@ -153,40 +153,56 @@ class DatabaseManager:
                         await conn.execute("ALTER TABLE admin_agents ADD COLUMN IF NOT EXISTS builder_config TEXT DEFAULT '{}'")
                     except Exception as _mig_err:
                         logger.debug(f"Migración PostgreSQL builder_config: {_mig_err}")
-                logger.info("Base de datos PostgreSQL conectada (pool activo)")
+                    try:
+                        await conn.execute("CREATE TABLE IF NOT EXISTS prompt_config (user_id INTEGER NOT NULL PRIMARY KEY, mode TEXT NOT NULL DEFAULT 'builder', use_custom BOOLEAN DEFAULT false, voice TEXT DEFAULT 'Nova', builder TEXT DEFAULT '{}', raw_content TEXT DEFAULT '', agent_id TEXT DEFAULT '', agent_source TEXT DEFAULT 'preset', agent_builder TEXT DEFAULT '{}', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES admin_users(id) ON DELETE CASCADE)")
+                    except Exception as _mig_err:
+                        logger.debug(f"Migración PostgreSQL prompt_config: {_mig_err}")
+                    try:
+                        await conn.execute("CREATE INDEX IF NOT EXISTS idx_call_logs_cost ON call_logs (cost_usd DESC)")
+                    except Exception as _mig_err:
+                        logger.debug(f"Migración PostgreSQL index cost: {_mig_err}")
+                logger.info("✅ Base de datos PostgreSQL conectada (pool activo)")
                 return
             except Exception as e:
-                logger.error(f"Falla al conectar a PostgreSQL (Railway): {e}")
-                logger.warning("Activando FALLBACK automático a SQLite local...")
-                self.db_type = "sqlite"
-                self.sqlite_path = "./data/nova.db"
+                logger.error(f"❌ CRÍTICO: Fallo al conectar a PostgreSQL (Railway): {e}")
+                logger.error("❌ No se puede iniciar sin Postgres en producción. Verifica DATABASE_URL.")
+                raise RuntimeError(f"PostgreSQL connection failed: {e}")
 
-        os.makedirs(os.path.dirname(self.sqlite_path), exist_ok=True)
-        self._db = await aiosqlite.connect(self.sqlite_path)
-        self._db.row_factory = aiosqlite.Row
-        await self._db.executescript(SCHEMA_SQL)
-        await self._db.commit()
-        # Migración dinámica para SQLite si ya existía la tabla
-        try:
-            await self._db.execute("ALTER TABLE inventory ADD COLUMN tags TEXT DEFAULT ''")
+        # SQLite solo permitido en desarrollo
+        if self.db_type == "sqlite":
+            logger.warning("⚠️  SQLite detectado - solo válido para DESARROLLO local")
+            os.makedirs(os.path.dirname(self.sqlite_path), exist_ok=True)
+            self._db = await aiosqlite.connect(self.sqlite_path)
+            self._db.row_factory = aiosqlite.Row
+            await self._db.executescript(SCHEMA_SQL)
             await self._db.commit()
-            logger.info("Migración: Columna 'tags' añadida a 'inventory' en SQLite")
-        except Exception:
-            pass
-        try:
-            await self._db.execute("ALTER TABLE admin_users ADD COLUMN role TEXT DEFAULT 'user'")
-            await self._db.commit()
-            logger.info("Migración: Columna 'role' añadida exitosamente a 'admin_users' en SQLite")
-        except Exception:
-            pass
-        try:
-            await self._db.execute("ALTER TABLE admin_agents ADD COLUMN builder_config TEXT DEFAULT '{}'")
-            await self._db.commit()
-            logger.info("Migración: Columna 'builder_config' añadida a 'admin_agents' en SQLite")
-        except Exception:
-            pass
-        await self._rebuild_fts_index()
-        logger.info(f"Base de datos SQLite conectada: {self.sqlite_path}")
+            try:
+                await self._db.execute("ALTER TABLE inventory ADD COLUMN tags TEXT DEFAULT ''")
+                await self._db.commit()
+            except Exception:
+                pass
+            try:
+                await self._db.execute("ALTER TABLE admin_users ADD COLUMN role TEXT DEFAULT 'user'")
+                await self._db.commit()
+            except Exception:
+                pass
+            try:
+                await self._db.execute("ALTER TABLE admin_agents ADD COLUMN builder_config TEXT DEFAULT '{}'")
+                await self._db.commit()
+            except Exception:
+                pass
+            try:
+                await self._db.execute("CREATE TABLE IF NOT EXISTS prompt_config (user_id INTEGER NOT NULL PRIMARY KEY, mode TEXT NOT NULL DEFAULT 'builder', use_custom BOOLEAN DEFAULT 0, voice TEXT DEFAULT 'Nova', builder TEXT DEFAULT '{}', raw_content TEXT DEFAULT '', agent_id TEXT DEFAULT '', agent_source TEXT DEFAULT 'preset', agent_builder TEXT DEFAULT '{}', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES admin_users(id) ON DELETE CASCADE)")
+                await self._db.commit()
+            except Exception:
+                pass
+            try:
+                await self._db.execute("CREATE INDEX IF NOT EXISTS idx_call_logs_cost ON call_logs (cost_usd DESC)")
+                await self._db.commit()
+            except Exception:
+                pass
+            await self._rebuild_fts_index()
+            logger.info(f"✅ Base de datos SQLite conectada (desarrollo): {self.sqlite_path}")
 
     async def reconnect(self, db_type: str, sqlite_path: str, postgres_url: str):
         await self.disconnect()
@@ -579,13 +595,16 @@ class DatabaseManager:
     async def get_token_stats_summary(self) -> dict:
         sql = """
             SELECT
-                COUNT(*) as total_calls,
+                COALESCE(SUM(total_calls),0)   as total_calls,
                 COALESCE(SUM(tokens_input),0)  as tokens_input,
                 COALESCE(SUM(tokens_output),0) as tokens_output,
                 COALESCE(SUM(tokens_total),0)  as tokens_total,
                 COALESCE(SUM(cost_usd),0)      as cost_usd,
-                COALESCE(AVG(tokens_total),0)  as avg_tokens_per_call
-            FROM call_logs
+                CASE 
+                    WHEN COALESCE(SUM(total_calls),0) > 0 THEN COALESCE(SUM(tokens_total),0) * 1.0 / COALESCE(SUM(total_calls),0)
+                    ELSE 0
+                END as avg_tokens_per_call
+            FROM token_usage_daily
         """
         return await self.fetch_one(sql)
 
@@ -761,4 +780,117 @@ class DatabaseManager:
 
     async def delete_agent_data_source(self, user_id: int):
         await self.execute("DELETE FROM agent_data_source WHERE user_id = ?", (user_id,))
+
+    # ── PROMPT CONFIG (persistencia en BD) ──────────────────────────────────────────────────
+
+    async def save_prompt_config(self, user_id: int, config: dict):
+        """Guarda la configuración de prompts del usuario en BD (no en JSON local)"""
+        from datetime import datetime
+        mode = config.get("mode", "builder")
+        use_custom = config.get("use_custom", False)
+        voice = config.get("voice", "Nova")
+        
+        builder_data = config.get("builder")
+        if builder_data is None:
+            builder_data = {}
+        builder = json.dumps(builder_data, ensure_ascii=False)
+        
+        raw_content = config.get("raw_content", "")
+        agent_id = config.get("agent_id", "")
+        agent_source = config.get("agent_source", "preset")
+        
+        agent_builder_data = config.get("agent_builder")
+        if agent_builder_data is None:
+            agent_builder_data = {}
+        agent_builder = json.dumps(agent_builder_data, ensure_ascii=False)
+        
+        now = datetime.now()
+
+        if self.db_type == "postgres":
+            sql = """
+                INSERT INTO prompt_config 
+                    (user_id, mode, use_custom, voice, builder, raw_content, agent_id, agent_source, agent_builder, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    mode = EXCLUDED.mode,
+                    use_custom = EXCLUDED.use_custom,
+                    voice = EXCLUDED.voice,
+                    builder = EXCLUDED.builder,
+                    raw_content = EXCLUDED.raw_content,
+                    agent_id = EXCLUDED.agent_id,
+                    agent_source = EXCLUDED.agent_source,
+                    agent_builder = EXCLUDED.agent_builder,
+                    updated_at = EXCLUDED.updated_at
+            """
+            async with self._db.acquire() as conn:
+                await conn.execute(sql, user_id, mode, use_custom, voice, builder, raw_content, 
+                                 agent_id, agent_source, agent_builder, now)
+        else:
+            sql = """
+                INSERT INTO prompt_config 
+                    (user_id, mode, use_custom, voice, builder, raw_content, agent_id, agent_source, agent_builder, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    mode = excluded.mode,
+                    use_custom = excluded.use_custom,
+                    voice = excluded.voice,
+                    builder = excluded.builder,
+                    raw_content = excluded.raw_content,
+                    agent_id = excluded.agent_id,
+                    agent_source = excluded.agent_source,
+                    agent_builder = excluded.agent_builder,
+                    updated_at = excluded.updated_at
+            """
+            await self._db.execute(sql, (user_id, mode, int(use_custom), voice, builder, raw_content, 
+                                       agent_id, agent_source, agent_builder, now))
+            await self._db.commit()
+        logger.info(f"✅ Prompt config guardada en BD para user_id={user_id} (modo={mode})")
+
+    async def load_prompt_config(self, user_id: int) -> dict | None:
+        """Carga la configuración de prompts del usuario desde BD"""
+        sql = """
+            SELECT mode, use_custom, voice, builder, raw_content, agent_id, agent_source, agent_builder
+            FROM prompt_config WHERE user_id = ?
+        """
+        row = await self.fetch_one(sql, (user_id,))
+        if not row:
+            return None
+        
+        try:
+            b_val = row.get("builder")
+            builder = json.loads(b_val) if b_val and b_val != "null" else {}
+        except Exception:
+            builder = {}
+            
+        try:
+            ab_val = row.get("agent_builder")
+            agent_builder = json.loads(ab_val) if ab_val and ab_val != "null" else {}
+        except Exception:
+            agent_builder = {}
+            
+        profile_name = "Preconfigurado"
+        try:
+            agent_row = await self.fetch_one("SELECT name FROM admin_agents WHERE user_id = ? AND agent_id = ?", (user_id, "active_agent"))
+            if agent_row and agent_row.get("name"):
+                profile_name = agent_row["name"]
+        except Exception:
+            pass
+        
+        return {
+            "mode": row.get("mode", "builder"),
+            "use_custom": bool(row.get("use_custom", False)),
+            "voice": row.get("voice", "Nova"),
+            "builder": builder,
+            "raw_content": row.get("raw_content", ""),
+            "agent_id": row.get("agent_id", ""),
+            "agent_source": row.get("agent_source", "preset"),
+            "agent_builder": agent_builder,
+            "profile_name": profile_name,
+        }
+
+    async def delete_prompt_config(self, user_id: int):
+        """Elimina la configuración de prompts del usuario de BD"""
+        await self.execute("DELETE FROM prompt_config WHERE user_id = ?", (user_id,))
+        logger.info(f"Prompt config eliminada para user_id={user_id}")
+
 

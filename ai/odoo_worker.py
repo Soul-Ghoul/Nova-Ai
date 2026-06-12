@@ -382,7 +382,6 @@ Devuelve ÚNICAMENTE el JSON plano estructurado con la clave "search_terms". Sin
                 code_str = f" [{code}]" if code else ""
                 barcode_str = f" | cod.barras: {barcode}" if barcode else ""
                 tax_str = f" | IVA: {', '.join(taxes)}" if taxes else ""
-
                 line = f"    - {name}{code_str} — ${price:,.2f} ({stock_str}){barcode_str}{tax_str}"
                 lines.append(line)
             lines.append("")
@@ -410,8 +409,40 @@ Devuelve ÚNICAMENTE el JSON plano estructurado con la clave "search_terms". Sin
                     return {"success": False, "message": "API Key inválida o expirada"}
                 if resp.status_code == 403:
                     return {"success": False, "message": "Sin permisos. Revisa los ACL del usuario"}
-                return {"success": False, "message": f"Error HTTP {resp.status_code}: {resp.text[:200]}"}
+                
+                content_type = resp.headers.get("Content-Type", "").lower()
+                text = resp.text or ""
+                if "html" in content_type or text.strip().startswith(("<html", "<!doctype", "<body", "<script")):
+                    return {"success": False, "message": f"Error HTTP {resp.status_code}: El servidor de Odoo respondió con una página web (HTML). Verifica si la URL o el subdominio de Odoo son correctos."}
+                
+                return {"success": False, "message": f"Error HTTP {resp.status_code}: {text[:200]}"}
         except httpx.TimeoutException:
             return {"success": False, "message": "Timeout al conectar con Odoo (>10s)"}
         except Exception as e:
             return {"success": False, "message": f"Error de conexión: {str(e)}"}
+
+
+def get_odoo_worker(base_url: str, api_key: str, db_name: str = "", odoo_user: str = "", user_id: int | None = None) -> OdooInventoryWorker:
+    is_vendor = False
+    if user_id is not None:
+        try:
+            from ai.prompt_loader import PromptLoader
+            loader = PromptLoader()
+            p_config = loader.get_prompt_config_cache(user_id)
+            if p_config is None:
+                import os
+                config_path = loader._get_config_path(user_id)
+                if os.path.exists(config_path):
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        p_config = json.load(f)
+            
+            if isinstance(p_config, dict) and p_config.get("odoo_agent_type") == "odoo_vendor_support":
+                is_vendor = True
+        except Exception as e:
+            logger.error(f"Error resolviendo tipo de odoo worker: {e}")
+
+    if is_vendor:
+        from ai.odoo_vendor_worker import OdooVendorWorker
+        return OdooVendorWorker(base_url, api_key, db_name, odoo_user)
+    else:
+        return OdooInventoryWorker(base_url, api_key, db_name, odoo_user)

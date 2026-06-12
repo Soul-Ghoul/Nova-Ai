@@ -89,6 +89,8 @@
             border-bottom: 1px solid var(--border);
             position: sticky; top: 0; z-index: 100;
         }
+        .header-top { display: flex; align-items: center; gap: 16px; flex: 1; justify-content: space-between; }
+        .header-left, .header-right { display: flex; align-items: center; gap: 10px; }
         .logo { display: flex; align-items: center; gap: 12px; }
         .logo-icon { width: 34px; height: 34px; }
         .logo-word { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; letter-spacing: .02em; }
@@ -106,6 +108,7 @@
             text-decoration: none;
         }
         .btn-ghost:hover { border-color: var(--border-hi); color: var(--text-1); background: var(--bg-hover); }
+        .hidden-mobile { display: inline; }
 
         /* ── MAIN ── */
         main {
@@ -124,6 +127,7 @@
             margin-bottom: 28px; flex-wrap: wrap;
         }
         .tab {
+            display: inline-flex; align-items: center; gap: 7px;
             padding: 7px 16px; border-radius: 7px;
             border: none; background: transparent;
             color: var(--text-2); font-family: var(--font-body); font-size: 0.82rem;
@@ -407,7 +411,113 @@
             .builder-grid { grid-template-columns: 1fr; }
             .preview-panel { position: static; }
             .form-grid { grid-template-columns: 1fr; }
-            .tabs { width: 100%; }
+            
+            header {
+                display: grid !important;
+                grid-template-columns: 1fr auto !important;
+                grid-template-rows: auto auto !important;
+                height: auto !important;
+                padding: 12px 16px 8px !important;
+                align-items: center !important;
+                gap: 12px !important;
+            }
+            .header-left {
+                grid-column: 1 / 2;
+                grid-row: 1 / 2;
+                display: flex !important;
+                align-items: center !important;
+                gap: 10px !important;
+            }
+            .header-right {
+                grid-column: 2 / 3;
+                grid-row: 1 / 2;
+                display: flex !important;
+                align-items: center !important;
+                gap: 10px !important;
+                justify-content: flex-end !important;
+            }
+            .tabs {
+                grid-column: 1 / 3 !important;
+                grid-row: 2 / 3 !important;
+                width: 100% !important;
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+                padding: 6px 4px !important;
+                gap: 8px !important;
+                border-radius: var(--radius-sm);
+                background: rgba(255, 255, 255, 0.02);
+                border: 1px solid var(--border) !important;
+                scrollbar-width: none;
+            }
+            .tabs::-webkit-scrollbar {
+                display: none;
+            }
+            .tab {
+                flex: 0 0 auto !important;
+                padding: 9px 15px !important;
+                font-size: 0.85rem !important;
+            }
+            .tab svg {
+                width: 17px !important;
+                height: 17px !important;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .hidden-mobile {
+                display: none !important;
+            }
+            .logo-badge {
+                display: none !important;
+            }
+            .logo-word {
+                font-size: 0.95rem;
+            }
+            .logo-icon {
+                width: 28px;
+                height: 28px;
+            }
+            .logo {
+                gap: 6px;
+            }
+            .btn-ghost {
+                padding: 8px;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .trait-row {
+                grid-template-columns: 1fr auto;
+                gap: 8px;
+            }
+            .trait-label {
+                grid-column: 1 / 3;
+            }
+            .trait-slider {
+                grid-column: 1 / 2;
+            }
+            .trait-value {
+                grid-column: 2 / 3;
+            }
+        }
+
+        @media (max-width: 480px) {
+            main {
+                padding: 16px 12px 60px;
+            }
+            .card {
+                padding: 16px 14px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .page-header {
+                margin-bottom: 20px;
+            }
+            .checkbox-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         /* ── TOKENS DASHBOARD ── */
@@ -483,6 +593,13 @@
         @media (max-width: 900px) {
             .tk-kpi-row { grid-template-columns: repeat(2, 1fr); }
             .tk-day-row { grid-template-columns: 64px 1fr 50px; }
+        }
+
+        @media (max-width: 480px) {
+            .tk-kpi-row { grid-template-columns: 1fr; }
+            .tk-day-row { grid-template-columns: 50px 1fr 40px; gap: 8px; }
+            .tk-day-label { font-size: 0.68rem; }
+            .tk-day-total { font-size: 0.68rem; }
         }
 
         /* ── AGENT PRESETS ── */
@@ -603,10 +720,480 @@
         .agent-card:hover .agent-card-delete { opacity: 1; }
         .agent-card-delete:hover { background: rgba(248,113,113,.3); }
 
-        @media (max-width: 900px) {
-            .agent-grid { grid-template-columns: repeat(2, 1fr); }
-            .trait-row { grid-template-columns: 110px 1fr 36px; }
-            .agent-identity { grid-template-columns: 1fr; }
+        /* Sub-pestañas para panel profile */
+        .btn-subtab {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; border-radius: var(--radius-sm);
+            border: 1px solid var(--border-mid); background: transparent;
+            color: var(--text-2); font-family: var(--font-body); font-size: 0.8rem;
+            cursor: pointer; transition: all var(--transition);
+        }
+        .btn-subtab:hover { border-color: var(--border-hi); color: var(--text-1); background: var(--bg-hover); }
+        .btn-subtab.active {
+            background: var(--accent-dim); color: var(--accent);
+            border-color: rgba(79,142,247,.3);
+        }
+        .subpanel { display: none; }
+        .subpanel.active { display: block; animation: fadeUp .22s ease; }
+
+        /* Menú lateral deslizante (Sidebar de perfil) */
+        .profile-sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 800px;
+            max-width: 95vw;
+            background: linear-gradient(145deg, rgba(8, 11, 20, 0.96) 0%, rgba(4, 5, 8, 0.99) 100%);
+            backdrop-filter: blur(30px) saturate(170%);
+            -webkit-backdrop-filter: blur(30px) saturate(170%);
+            border-right: 1px solid rgba(79, 142, 247, 0.16);
+            z-index: 1050;
+            box-shadow: 
+                0 0 100px rgba(0, 0, 0, 0.8),
+                0 0 0 1px rgba(255, 255, 255, 0.02) inset,
+                -10px 0 50px rgba(79, 142, 247, 0.05);
+            transform: translateX(-100%);
+            transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .profile-sidebar.open {
+            transform: translateX(0);
+        }
+        
+        .profile-sidebar-close {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            width: 36px;
+            height: 36px;
+            font-size: 1.25rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 50%;
+            color: var(--text-2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1060;
+        }
+        .profile-sidebar-close:hover {
+            color: #fff;
+            background: rgba(248, 113, 113, 0.2);
+            border-color: rgba(248, 113, 113, 0.35);
+            box-shadow: 0 0 15px rgba(248, 113, 113, 0.25);
+            transform: rotate(90deg);
+        }
+        
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(3, 4, 7, 0.65);
+            backdrop-filter: blur(10px) saturate(120%);
+            z-index: 1040;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .sidebar-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .profile-sidebar-layout {
+            display: flex;
+            flex: 1;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .profile-sidebar-nav {
+            width: 260px;
+            background: linear-gradient(180deg, rgba(10, 14, 23, 0.6) 0%, rgba(6, 8, 13, 0.8) 100%);
+            border-right: 1px solid rgba(255, 255, 255, 0.04);
+            display: flex;
+            flex-direction: column;
+            padding: 36px 20px 24px;
+            gap: 28px;
+            flex-shrink: 0;
+        }
+        
+        .profile-sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .profile-admin-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4f8ef7 0%, #7c5ef5 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: #ffffff;
+            box-shadow: 
+                0 0 15px rgba(79, 142, 247, 0.35),
+                0 0 0 2px rgba(255, 255, 255, 0.05);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            flex-shrink: 0;
+        }
+        
+        .profile-admin-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .profile-admin-name {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text-1);
+            letter-spacing: -0.01em;
+        }
+        
+        .profile-admin-role {
+            font-size: 0.72rem;
+            font-weight: 500;
+            color: var(--text-3);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        
+        .profile-nav-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .profile-sidebar-nav .btn-subtab {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 16px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-2);
+            font-family: var(--font-body);
+            font-weight: 500;
+            font-size: 0.86rem;
+            text-align: left;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .profile-sidebar-nav .btn-subtab .tab-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            font-size: 0.95rem;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+            transition: all 0.2s;
+        }
+        
+        .profile-sidebar-nav .btn-subtab:hover {
+            color: var(--text-1);
+            background: rgba(255, 255, 255, 0.045);
+        }
+        
+        .profile-sidebar-nav .btn-subtab:hover .tab-icon {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+        
+        .profile-sidebar-nav .btn-subtab.active {
+            background: linear-gradient(90deg, rgba(79, 142, 247, 0.12) 0%, rgba(124, 94, 245, 0.05) 100%);
+            color: var(--text-1);
+            border-color: rgba(79, 142, 247, 0.2);
+            font-weight: 600;
+            box-shadow: 
+                0 4px 15px rgba(0, 0, 0, 0.1),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.01);
+        }
+        
+        .profile-sidebar-nav .btn-subtab.active .tab-icon {
+            background: rgba(79, 142, 247, 0.2);
+            border-color: rgba(79, 142, 247, 0.3);
+            color: var(--cyan);
+        }
+        
+        .profile-sidebar-nav .btn-subtab.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 10px;
+            bottom: 10px;
+            width: 4px;
+            background: linear-gradient(180deg, #4f8ef7, #7c5ef5);
+            border-radius: 0 4px 4px 0;
+            box-shadow: 0 0 8px #4f8ef7;
+        }
+        
+        .profile-sidebar-body {
+            flex: 1;
+            padding: 44px 48px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        .profile-sidebar-body .card-title {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: 1.45rem;
+            letter-spacing: -0.01em;
+            color: var(--text-1);
+            margin-bottom: 6px;
+        }
+        
+        .profile-sidebar-body .card-sub {
+            font-size: 0.88rem;
+            color: var(--text-2);
+            line-height: 1.5;
+            margin-bottom: 32px;
+        }
+        
+        .profile-sidebar-body .form-group {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .profile-sidebar-body .form-group label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-3);
+            transition: color 0.2s;
+        }
+        
+        .profile-sidebar-body .form-group:focus-within label {
+            color: var(--accent);
+        }
+        
+        .profile-sidebar-body .form-group input, 
+        .profile-sidebar-body .form-group select {
+            background: rgba(13, 17, 23, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 13px 16px;
+            color: var(--text-1);
+            font-size: 0.92rem;
+            font-family: var(--font-body);
+            outline: none;
+            transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .profile-sidebar-body .form-group input:hover, 
+        .profile-sidebar-body .form-group select:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+            background: rgba(13, 17, 23, 0.7);
+        }
+        
+        .profile-sidebar-body .form-group input:focus, 
+        .profile-sidebar-body .form-group select:focus {
+            border-color: var(--accent);
+            background: rgba(13, 17, 23, 0.95);
+            box-shadow: 
+                0 0 0 3px rgba(79, 142, 247, 0.15),
+                0 0 20px rgba(79, 142, 247, 0.1),
+                inset 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+        
+        .profile-sidebar-body .form-group input[readonly] {
+            background: rgba(255, 255, 255, 0.015);
+            border-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-2);
+            cursor: not-allowed;
+            box-shadow: none;
+            padding-left: 40px;
+        }
+        
+        .profile-sidebar-body .form-group input[readonly] + .readonly-lock {
+            position: absolute;
+            left: 14px;
+            top: 39px;
+            font-size: 0.85rem;
+            color: var(--text-3);
+            pointer-events: none;
+        }
+        
+        .profile-sidebar-body .source-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-radius: 14px;
+            background: linear-gradient(90deg, rgba(79, 142, 247, 0.06) 0%, rgba(124, 94, 245, 0.04) 100%);
+            border: 1px solid rgba(79, 142, 247, 0.15);
+            margin-bottom: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+        
+        .profile-sidebar-body .source-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-2);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        
+        .profile-sidebar-body .source-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            background: rgba(79, 142, 247, 0.15);
+            color: #8bb4ff;
+            border: 1px solid rgba(79, 142, 247, 0.3);
+            box-shadow: 0 0 10px rgba(79, 142, 247, 0.1);
+        }
+        
+        .profile-sidebar-body .btn-primary {
+            padding: 13px 24px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #4f8ef7 0%, #7c5ef5 100%);
+            color: #ffffff;
+            border: none;
+            box-shadow: 0 4px 20px rgba(124, 94, 245, 0.25);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .profile-sidebar-body .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 24px rgba(124, 94, 245, 0.35);
+            filter: brightness(1.08);
+        }
+        
+        .profile-sidebar-body .btn-primary:active {
+            transform: translateY(1px);
+        }
+        
+        .profile-sidebar-body .btn-secondary {
+            padding: 13px 24px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--cyan);
+            border: 1px solid rgba(103, 232, 249, 0.18);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .profile-sidebar-body .btn-secondary:hover {
+            background: rgba(103, 232, 249, 0.06);
+            border-color: rgba(103, 232, 249, 0.35);
+            color: #a5f3fc;
+        }
+        
+        .profile-sidebar-footer {
+            margin-top: auto;
+            padding: 16px 8px 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.03);
+            display: flex;
+            align-items: center;
+            font-size: 0.74rem;
+            color: var(--text-3);
+            font-weight: 500;
+        }
+        
+        .profile-sidebar-footer .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            display: inline-block;
+            margin-right: 10px;
+            position: relative;
+        }
+        
+        .profile-sidebar-footer .status-dot::after {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            border-radius: 50%;
+            border: 2px solid var(--green);
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
+            opacity: 0;
+        }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(0.65); opacity: 0; }
+            50% { opacity: 0.6; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+        
+        /* En pantallas chicas colapsa a estilo stack vertical */
+        @media (max-width: 768px) {
+            .profile-sidebar {
+                width: 100vw;
+                max-width: 100vw;
+                background: var(--bg-panel);
+            }
+            .profile-sidebar-layout {
+                flex-direction: column;
+                overflow-y: auto;
+            }
+            .profile-sidebar-nav {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+                padding: 30px 20px 20px;
+                gap: 20px;
+            }
+            .profile-nav-list {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .profile-sidebar-nav .btn-subtab {
+                width: auto;
+                padding: 9px 14px;
+                font-size: 0.82rem;
+            }
+            .profile-sidebar-nav .btn-subtab.active::before {
+                display: none;
+            }
+            .profile-sidebar-body {
+                padding: 32px 20px;
+                overflow-y: visible;
+            }
+            .profile-sidebar-close {
+                top: 24px;
+                right: 20px;
+            }
+            .profile-sidebar-footer {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -619,50 +1206,211 @@
 
 <div class="app">
 
+    <!-- Menú Lateral Deslizante (Perfil / Ajustes) -->
+    <div id="profileSidebar" class="profile-sidebar">
+        <!-- Botón de Cerrar Menú Lateral -->
+        <button class="profile-sidebar-close" id="btnCloseProfileSidebar" title="Cerrar">&times;</button>
+        
+        <div class="profile-sidebar-layout">
+            <!-- Columna Izquierda: Navegación Vertical -->
+            <aside class="profile-sidebar-nav">
+                <div class="profile-sidebar-header">
+                    <div class="profile-admin-avatar">A</div>
+                    <div class="profile-admin-info">
+                        <span class="profile-admin-name" id="sidebarAdminName">Admin</span>
+                        <span class="profile-admin-role">Super User</span>
+                    </div>
+                </div>
+                <div class="profile-nav-list">
+                    <button class="btn-subtab active" data-subtab="profile-info">
+                        <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+                        <span>Cuenta</span>
+                    </button>
+                    <button class="btn-subtab" data-subtab="profile-db">
+                        <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg></span>
+                        <span>Conexión (DB)</span>
+                    </button>
+                    <button class="btn-subtab" data-subtab="profile-general">
+                        <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+                        <span>General</span>
+                    </button>
+                </div>
+                <div class="profile-sidebar-footer">
+                    <span class="status-dot"></span>
+                    <span>Nova Engine Online</span>
+                </div>
+            </aside>
+            
+            <!-- Columna Derecha: Contenido de los subpaneles -->
+            <div class="profile-sidebar-body">
+                <!-- Subpanel: Datos de Cuenta -->
+                <div id="subpanel-profile-info" class="subpanel active">
+                    <div class="card" style="border: none; background: transparent; padding: 0; box-shadow: none;">
+                        <div class="card-title">Perfil de Administrador</div>
+                        <div class="card-sub">Información básica sobre tu cuenta en el sistema.</div>
+                        
+                        <div class="form-grid" style="display: flex; flex-direction: column; gap: 14px;">
+                            <div class="form-group">
+                                <label>Nombre de Usuario</label>
+                                <input type="text" id="profUsername" readonly>
+                                <span class="readonly-lock">🔒</span>
+                            </div>
+                            <div class="form-group">
+                                <label>Rol de Acceso</label>
+                                <input type="text" id="profRole" readonly>
+                                <span class="readonly-lock">🔒</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subpanel: Ajustes de Conexión (DB) -->
+                <div id="subpanel-profile-db" class="subpanel">
+                    <div class="card" style="border: none; background: transparent; padding: 0; box-shadow: none;">
+                        <div class="card-title">Fuente de Datos del Agente</div>
+                        <div class="card-sub">
+                            Selecciona qué base de datos utilizará Nova para consultar inventario durante las llamadas.
+                        </div>
+
+                        <div class="source-bar">
+                            <span class="source-label">FUENTE ACTIVA</span>
+                            <span class="source-badge" id="dsActiveBadge">⏳ Cargando...</span>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom:20px">
+                            <label>Tipo de Base de Datos</label>
+                            <select id="dsSourceType">
+                                <option value="internal">BD Interna (SQLite / PostgreSQL del sistema)</option>
+                                <option value="postgres_local">PostgreSQL Local (conexión directa)</option>
+                                <option value="postgres_railway">PostgreSQL Railway (conexión externa)</option>
+                                <option value="odoo">Odoo (JSON-2 API)</option>
+                            </select>
+                        </div>
+
+                        <!-- PostgreSQL fields -->
+                        <div id="dsPgFields" style="display:none">
+                            <div class="form-grid" style="display: flex; flex-direction: column; gap: 14px;">
+                                <div class="form-group">
+                                    <label>URL de Conexión PostgreSQL</label>
+                                    <input type="password" id="dsPgConnString" placeholder="postgresql://user:pass@host:5432/dbname" autocomplete="off">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Odoo fields -->
+                        <div id="dsOdooFields" style="display:none">
+                            <div class="form-grid" style="display: flex; flex-direction: column; gap: 14px;">
+                                <div class="form-group">
+                                    <label>URL de Odoo</label>
+                                    <input type="text" id="dsOdooUrl" placeholder="https://mi-empresa.odoo.com">
+                                </div>
+                                <div class="form-group">
+                                    <label>Nombre de Base de Datos</label>
+                                    <input type="text" id="dsOdooDb" placeholder="mi-empresa">
+                                </div>
+                                <div class="form-group">
+                                    <label>API Key</label>
+                                    <input type="password" id="dsOdooApiKey" placeholder="Tu API Key de Odoo" autocomplete="off">
+                                </div>
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" id="dsOdooUser" placeholder="admin@mi-empresa.com" autocomplete="email">
+                                </div>
+                            </div>
+                        </div>
+
+
+
+                        
+
+                        <div style="display:flex; flex-direction: column; gap:10px; margin-top:24px">
+                            <button class="btn-primary btn-full" id="btnSaveDataSource">💾 Guardar Configuración</button>
+                            <button class="btn-secondary btn-full" id="btnTestDataSource">🔌 Probar Conexión</button>
+                        </div>
+
+                        <div id="dsTestResult" style="margin-top:14px;display:none">
+                            <div style="padding:12px 16px;border-radius:var(--radius-sm);font-size:.85rem;font-family:var(--font-mono)"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subpanel: Ajustes Generales -->
+                <div id="subpanel-profile-general" class="subpanel">
+                    <div class="card" style="border: none; background: transparent; padding: 0; box-shadow: none;">
+                        <div class="card-title">Ajustes Generales de la Aplicación</div>
+                        <div class="card-sub">Configuraciones generales del sistema y preferencias de la interfaz.</div>
+                        
+                        <div class="form-grid" style="display: flex; flex-direction: column; gap: 14px;">
+                            <div class="form-group">
+                                <label>Nombre de la Aplicación</label>
+                                <input type="text" value="Nova Voice Agent" readonly>
+                                <span class="readonly-lock">🔒</span>
+                            </div>
+                            <div class="form-group">
+                                <label>Versión del Sistema</label>
+                                <input type="text" value="v1.0.0" readonly>
+                                <span class="readonly-lock">🔒</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fondo oscuro translúcido para el Sidebar -->
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
     <!-- HEADER -->
     <header>
-        <div class="logo">
-            <svg class="logo-icon" viewBox="0 0 34 34" fill="none">
-                <circle cx="17" cy="17" r="15.5" stroke="url(#lg1)" stroke-width="2" fill="none"/>
-                <path d="M12 22V12l10 5-10 5z" fill="url(#lg1)"/>
-                <defs>
-                    <linearGradient id="lg1" x1="0" y1="0" x2="34" y2="34">
-                        <stop offset="0%" stop-color="#4f8ef7"/>
-                        <stop offset="100%" stop-color="#7c5ef5"/>
-                    </linearGradient>
-                </defs>
-            </svg>
-            <span class="logo-word">Nova</span>
-            <span class="logo-badge">Admin</span>
+        <div class="header-left">
+            <!-- PERFIL / AJUSTES (Esquina superior izquierda) -->
+            <button id="btnProfile" class="btn-ghost" style="padding: 6px 12px; display: flex; align-items: center; gap: 6px;" title="Ajustes de Perfil y Base de Datos">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span class="hidden-mobile" id="headerUsername">Perfil</span>
+            </button>
+
+            <div class="logo">
+                <svg class="logo-icon" viewBox="0 0 34 34" fill="none">
+                    <circle cx="17" cy="17" r="15.5" stroke="url(#lg1)" stroke-width="2" fill="none"/>
+                    <path d="M12 22V12l10 5-10 5z" fill="url(#lg1)"/>
+                    <defs>
+                        <linearGradient id="lg1" x1="0" y1="0" x2="34" y2="34">
+                            <stop offset="0%" stop-color="#4f8ef7"/>
+                            <stop offset="100%" stop-color="#7c5ef5"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <span class="logo-word">Nova</span>
+                <span class="logo-badge">Admin</span>
+            </div>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
+        
+        <!-- TABS DE NAVEGACIÓN SUPERIOR (En el header, arriba en el panel) -->
+        <div class="tabs" id="adminTabs" style="margin-bottom: 0; border: none; background: transparent; padding: 0;">
+            <button class="tab active" data-tab="extensions"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span class="hidden-mobile">Extensiones</span></button>
+            <button class="tab" data-tab="inventory"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span class="hidden-mobile">Inventario</span></button>
+            <button class="tab" data-tab="prompts"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span class="hidden-mobile">System Prompt</span></button>
+            <button class="tab" data-tab="tokens"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span class="hidden-mobile">Tokens</span></button>
+            <button class="tab" data-tab="users" id="tabUsersBtn" style="display: none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="hidden-mobile"> Usuarios</span></button>
+        </div>
+
+        <div class="header-right">
             <a href="/" class="btn-ghost">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-                Voz
+                <span class="hidden-mobile">Voz</span>
             </a>
-            <button id="btnLogout" class="btn-ghost" style="border-color: rgba(248,113,113,.2); color: var(--red);">
-                🚪 Cerrar Sesión
+            <button id="btnLogout" class="btn-ghost" style="border-color: rgba(248,113,113,.2); color: var(--red); display: flex; align-items: center; gap: 6px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <span class="hidden-mobile">Cerrar Sesión</span>
             </button>
         </div>
     </header>
 
     <main>
-        <div class="page-header">
-            <div class="page-title">Configuración del Agente</div>
-            <div class="page-sub">Administra extensiones, inventario, prompts del sistema y monitorea la actividad</div>
-        </div>
-
-        <!-- TABS -->
-        <div class="tabs" id="adminTabs">
-            <button class="tab active" data-tab="extensions">📞 Extensiones</button>
-            <button class="tab" data-tab="inventory">📦 Inventario</button>
-            <button class="tab" data-tab="datasource">🗄️ Base de Datos</button>
-            <button class="tab" data-tab="prompts">🧠 System Prompt</button>
-            <button class="tab" data-tab="tools">⚙️ Herramientas</button>
-            <button class="tab" data-tab="sessions">📊 Sesiones</button>
-            <button class="tab" data-tab="logs">📝 Logs</button>
-            <button class="tab" data-tab="tokens">💰 Tokens</button>
-            <button class="tab" data-tab="users" id="tabUsersBtn" style="display: none;">👥 Usuarios</button>
+        <div class="page-header" style="margin-bottom: 24px;">
+            <div class="page-title" id="mainPageTitle">Directorio de Extensiones</div>
+            <div class="page-sub" id="mainPageSub">Registra y administra las extensiones telefónicas de los departamentos y empleados.</div>
         </div>
 
         <!-- ── EXTENSIONS ── -->
@@ -746,83 +1494,23 @@
 
             <div class="card">
                 <div class="card-title">Inventario de Productos</div>
-                <table class="data-table" id="inventoryTable">
-                    <thead>
-                        <tr><th>Producto</th><th>Marca</th><th>Categoría</th><th>Precio</th><th>Stock</th><th></th></tr>
-                    </thead>
-                    <tbody id="inventoryBody">
-                        <tr><td colspan="6" class="empty-state">Cargando inventario…</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- ── DATA SOURCE ── -->
-        <div class="panel" id="panel-datasource">
-            <div class="card">
-                <div class="card-title">Fuente de Datos del Agente</div>
-                <div class="card-sub">
-                    Selecciona qué base de datos utilizará Nova para consultar inventario durante las llamadas.
-                    Las credenciales se almacenan de forma segura y no se exponen en logs.
+                <div style="overflow-x: auto; width: 100%;">
+                    <table class="data-table" id="inventoryTable">
+                        <thead>
+                            <tr><th>Producto</th><th>Marca</th><th>Categoría</th><th>Precio</th><th>Stock</th><th></th></tr>
+                        </thead>
+                        <tbody id="inventoryBody">
+                            <tr><td colspan="6" class="empty-state">Cargando inventario…</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-
-                <div class="source-bar" style="margin-bottom:20px">
-                    <span class="source-label">FUENTE ACTIVA</span>
-                    <span class="source-badge" id="dsActiveBadge">⏳ Cargando...</span>
-                </div>
-
-                <div class="form-group" style="margin-bottom:20px">
-                    <label>Tipo de Base de Datos</label>
-                    <select id="dsSourceType" style="max-width:400px">
-                        <option value="internal">🗃️ BD Interna (SQLite / PostgreSQL del sistema)</option>
-                        <option value="postgres_local">🐘 PostgreSQL Local (conexión directa)</option>
-                        <option value="postgres_railway">🚂 PostgreSQL Railway (conexión externa)</option>
-                        <option value="odoo">🟣 Odoo (JSON-2 API)</option>
-                    </select>
-                </div>
-
-                <!-- PostgreSQL fields -->
-                <div id="dsPgFields" style="display:none">
-                    <div class="form-grid">
-                        <div class="form-group" style="grid-column:1/-1">
-                            <label>URL de Conexión PostgreSQL</label>
-                            <input type="password" id="dsPgConnString" placeholder="postgresql://user:pass@host:5432/dbname" autocomplete="off">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Odoo fields -->
-                <div id="dsOdooFields" style="display:none">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>URL de Odoo</label>
-                            <input type="text" id="dsOdooUrl" placeholder="https://mi-empresa.odoo.com">
-                        </div>
-                        <div class="form-group">
-                            <label>Nombre de Base de Datos</label>
-                            <input type="text" id="dsOdooDb" placeholder="mi-empresa">
-                        </div>
-                        <div class="form-group">
-                            <label>API Key</label>
-                            <input type="password" id="dsOdooApiKey" placeholder="Tu API Key de Odoo" autocomplete="off">
-                        </div>
-                        <div class="form-group">
-                            <label>Usuario / Email (opcional)</label>
-                            <input type="text" id="dsOdooUser" placeholder="admin@mi-empresa.com">
-                        </div>
-                    </div>
-                </div>
-
-                <div style="display:flex;gap:10px;margin-top:20px">
-                    <button class="btn-primary" id="btnSaveDataSource">💾 Guardar Configuración</button>
-                    <button class="btn-secondary" id="btnTestDataSource">🔌 Probar Conexión</button>
-                </div>
-
-                <div id="dsTestResult" style="margin-top:14px;display:none">
-                    <div style="padding:12px 16px;border-radius:var(--radius-sm);font-size:.85rem;font-family:var(--font-mono)"></div>
+                <!-- Paginación -->
+                <div id="inventoryPagination" style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 16px;">
                 </div>
             </div>
         </div>
+
+
 
         <!-- ── PROMPTS ── -->
         <div class="panel" id="panel-prompts">
@@ -1101,57 +1789,7 @@ Eres Nova, asistente de Tech Solutions…'></textarea>
             </div>
         </div>
 
-        <!-- ── TOOLS ── -->
-        <div class="panel" id="panel-tools">
-            <div class="card">
-                <div class="card-title">Herramientas de Function Calling</div>
-                <div class="card-sub">
-                    Configuración JSON de las funciones que la IA puede ejecutar durante una llamada.
-                    Cada herramienta define nombre, descripción y parámetros.
-                </div>
-                <div class="form-group">
-                    <label>Configuración JSON</label>
-                    <textarea class="mono" id="toolsEditor" rows="25"></textarea>
-                </div>
-                <button class="btn-primary" id="btnSaveTools" style="margin-top:14px">💾 Guardar Herramientas</button>
-            </div>
-        </div>
 
-        <!-- ── SESSIONS ── -->
-        <div class="panel" id="panel-sessions">
-            <div class="card">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-                    <div class="card-title" style="margin-bottom:0">Sesiones Activas</div>
-                    <button class="btn-ghost btn-sm" id="btnRefreshSessions">↻ Actualizar</button>
-                </div>
-                <table class="data-table">
-                    <thead>
-                        <tr><th>Session ID</th><th>Fuente</th><th>Duración</th><th>Tokens In</th><th>Tokens Out</th><th>Total</th><th>Límite</th><th>Estado</th></tr>
-                    </thead>
-                    <tbody id="sessionsBody">
-                        <tr><td colspan="8" class="empty-state">Sin sesiones activas</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- ── LOGS ── -->
-        <div class="panel" id="panel-logs">
-            <div class="card">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-                    <div class="card-title" style="margin-bottom:0">Historial de Llamadas</div>
-                    <button class="btn-ghost btn-sm" id="btnRefreshLogs">↻ Actualizar</button>
-                </div>
-                <table class="data-table">
-                    <thead>
-                        <tr><th>Fecha</th><th>Fuente</th><th>Duración</th><th>Tokens</th><th>Costo USD</th><th>Acciones</th></tr>
-                    </thead>
-                    <tbody id="logsBody">
-                        <tr><td colspan="6" class="empty-state">Sin registros</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
 
         <!-- ── TOKENS DASHBOARD ── -->
         <div class="panel" id="panel-tokens">
@@ -1319,7 +1957,17 @@ Eres Nova, asistente de Tech Solutions…'></textarea>
         document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById('panel-' + tab.dataset.tab)?.classList.add('active');
-        if (tab.dataset.tab === 'tokens') loadTokenDashboard();
+    });
+
+    /* ── SUB-TAB SWITCHING (PROFILE) ── */
+    document.querySelectorAll('.btn-subtab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.btn-subtab').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.subpanel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            const subtab = btn.dataset.subtab;
+            document.getElementById('subpanel-' + subtab)?.classList.add('active');
+        });
     });
 
     /* ── MODE TABS ── */
@@ -1471,6 +2119,6 @@ Eres Nova, asistente de Tech Solutions…'></textarea>
 </script>
 
 <script src="/static/js/neural-bg.js"></script>
-<script src="/static/js/admin.js?v=1.2.0"></script>
+<script src="/static/js/admin.js?v=1.7.1"></script>
 </body>
 </html>

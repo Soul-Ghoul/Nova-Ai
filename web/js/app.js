@@ -129,7 +129,8 @@ class NovaVoiceApp {
             this.updateUI('recording');
             this.startTimer();
             this.startWaveformAnimation();
-            this.logEvent('system', `Conectado al Asistente Virtual [${agent}]. Habla ahora...`);
+            const displayName = agent === 'nova_default' ? `Activa: ${this.agentName}` : (agentSel ? agentSel.options[agentSel.selectedIndex].text : agent);
+            this.logEvent('system', `Conectado al Asistente Virtual [${displayName}]. Habla ahora...`);
         };
 
         this.ws.onmessage = (event) => {
@@ -226,17 +227,20 @@ class NovaVoiceApp {
             let mode = '📂 Archivos del sistema';
             this.agentName = 'Nova';
             
-            if (data.config_exists) {
+            if (data.config_stored || data.config_exists) {
                 if (cfg.mode === 'agent') {
                     mode = `🤖 Agente: ${cfg.profile_name || 'Preconfigurado'}`;
+                    if (cfg.profile_name) {
+                        this.agentName = cfg.profile_name.split('(')[0].trim();
+                    }
                 } else if (cfg.mode === 'builder') {
                     mode = '🎨 Constructor Visual';
+                    if (cfg.builder?.identity?.name) {
+                        this.agentName = cfg.builder.identity.name;
+                    }
                 } else if (cfg.mode === 'raw') {
                     mode = '📝 Texto / JSON';
-                }
-                
-                if (cfg.builder?.identity?.name) {
-                    this.agentName = cfg.builder.identity.name;
+                    this.agentName = 'Agente';
                 }
             }
             

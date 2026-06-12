@@ -44,11 +44,135 @@ gemini_client: GeminiLiveClient | None = None
 audiosocket_server: AudioSocketServer | None = None
 exchange_updater: ExchangeRateUpdater | None = None
 
+async def _restore_prompt_configs():
+    try:
+        import os
+        import json
+        
+        logger.info("Iniciando restauración de configuraciones de prompts desde la base de datos...")
+        prompts_dir = prompt_loader.prompts_dir
+        os.makedirs(prompts_dir, exist_ok=True)
+        os.makedirs("data", exist_ok=True)
+        
+        restored_users = set()
+        
+        # 1. Cargar y restaurar desde prompt_config
+        try:
+            sql_configs = "SELECT user_id, mode, use_custom, voice, builder, raw_content, agent_id, agent_source, agent_builder FROM prompt_config"
+            configs_rows = await db.fetch_all(sql_configs)
+            logger.info(f"Restaurando {len(configs_rows)} registros de prompt_config...")
+            for r in configs_rows:
+                u_id = r["user_id"]
+                try:
+                    b_val = r["builder"]
+                    builder = json.loads(b_val) if b_val and b_val != "null" else {}
+                    ab_val = r["agent_builder"]
+                    agent_builder = json.loads(ab_val) if ab_val and ab_val != "null" else {}
+                except Exception:
+                    builder = {}
+                    agent_builder = {}
+                
+                config_data = {
+                    "mode": r["mode"],
+                    "use_custom": bool(r["use_custom"]),
+                    "voice": r["voice"] or "Nova",
+                    "builder": builder,
+                    "raw_content": r["raw_content"] or "",
+                    "agent_id": r["agent_id"] or "",
+                    "agent_source": r["agent_source"] or "preset",
+                    "agent_builder": agent_builder,
+                }
+                
+                config_path = prompt_loader._get_config_path(u_id)
+                with open(config_path, "w", encoding="utf-8") as f:
+                    json.dump(config_data, f, ensure_ascii=False, indent=2)
+                prompt_loader.set_prompt_config_cache(u_id, config_data)
+                restored_users.add(u_id)
+        except Exception as err:
+            logger.error(f"Error restaurando desde tabla prompt_config: {err}")
+
+        # 2. Cargar y restaurar archivos físicos desde admin_agents (active_agent)
+        try:
+            sql = "SELECT user_id, name, system_prompt, builder_config FROM admin_agents WHERE agent_id = ?"
+            rows = await db.fetch_all(sql, ("active_agent",))
+            
+            for r in rows:
+                u_id = r["user_id"]
+                system_prompt = r["system_prompt"]
+                builder_config_str = r.get("builder_config") or "{}"
+                
+                try:
+                    config_data = json.loads(builder_config_str)
+                except Exception:
+                    config_data = {}
+                
+                if u_id not in restored_users and config_data:
+                    logger.warning(f"Usuario {u_id} tenía agente activo pero no registro en prompt_config. Reparando...")
+                    await db.save_prompt_config(u_id, config_data)
+                    
+                    config_path = prompt_loader._get_config_path(u_id)
+                    with open(config_path, "w", encoding="utf-8") as f:
+                        json.dump(config_data, f, ensure_ascii=False, indent=2)
+                    prompt_loader.set_prompt_config_cache(u_id, config_data)
+                    restored_users.add(u_id)
+                
+                if not config_data:
+                    continue
+                
+                mode = config_data.get("mode", "none")
+                if mode == "builder":
+                    filepath = os.path.join(prompts_dir, f"nova_builder_{u_id}.md")
+                    with open(filepath, "w", encoding="utf-8") as f:
+                        f.write(system_prompt)
+                elif mode == "raw":
+                    filepath = os.path.join(prompts_dir, f"nova_default_{u_id}.yaml")
+                    with open(filepath, "w", encoding="utf-8") as f:
+                        f.write(system_prompt)
+                elif mode == "agent":
+                    agent_id = config_data.get("agent_id")
+                    agent_source = config_data.get("agent_source", "preset")
+                    agent_builder = config_data.get("agent_builder") or config_data.get("builder", {})
+                    
+                    if agent_source == "custom" and agent_id:
+                        filepath = os.path.join(prompts_dir, f"nova_custom_{agent_id}.md")
+                        with open(filepath, "w", encoding="utf-8") as f:
+                            f.write(system_prompt)
+                    else:
+                        filepath_md = os.path.join(prompts_dir, f"nova_agent_{u_id}.md")
+                        with open(filepath_md, "w", encoding="utf-8") as f:
+                            f.write(system_prompt)
+                        
+                        if agent_id:
+                            import yaml
+                            filepath_yaml = os.path.join(prompts_dir, f"nova_{agent_id}_{u_id}.yaml")
+                            preset_data = {
+                                "name": agent_builder.get("identity", {}).get("name", "Nova"),
+                                "company": agent_builder.get("identity", {}).get("company", "la empresa"),
+                                "role": agent_builder.get("identity", {}).get("role", "asistente"),
+                                "greeting": agent_builder.get("greeting", ""),
+                                "language": agent_builder.get("language", "es"),
+                                "tone": agent_builder.get("tone", "friendly"),
+                                "personality": agent_builder.get("personality", []),
+                                "capabilities": agent_builder.get("capabilities", []),
+                                "rules": agent_builder.get("rules", []),
+                                "custom_instructions": agent_builder.get("custom_instructions", ""),
+                                "system_prompt": system_prompt
+                            }
+                            with open(filepath_yaml, "w", encoding="utf-8") as f:
+                                yaml.safe_dump(preset_data, f, allow_unicode=True, default_flow_style=False)
+        except Exception as err:
+            logger.error(f"Error restaurando desde tabla admin_agents: {err}")
+            
+        logger.info("Restauración de agentes activos completada exitosamente.")
+    except Exception as e:
+        logger.error(f"Error general en restauración de agentes activos: {e}")
+
+
 async def init_resources():
     global gemini_client, audiosocket_server, exchange_updater
 
     logger.info("=" * 60)
-    logger.info("  Nova Voice Agent (Django) — Iniciando...")
+    logger.info("  Nova Voice Agent — Iniciando...")
     logger.info("=" * 60)
 
     exchange_updater = ExchangeRateUpdater()
@@ -56,6 +180,7 @@ async def init_resources():
 
     await db.connect()
     await seed_database(db)
+    await _restore_prompt_configs()
 
     set_lookup_ext_db(db)
     set_lookup_inv_db(db)
@@ -88,7 +213,7 @@ async def init_resources():
 
 async def close_resources():
     global audiosocket_server, exchange_updater
-    logger.info("Nova Voice Agent (Django) — Cerrando...")
+    logger.info("Nova Voice Agent — Cerrando...")
     if exchange_updater:
         try:
             exchange_updater.stop()
@@ -107,4 +232,4 @@ async def close_resources():
         await db.disconnect()
     except Exception as e:
         logger.error(f"Error desconectando Base de Datos: {e}")
-    logger.info("Nova Voice Agent (Django) — Cerrado.")
+    logger.info("Nova Voice Agent — Cerrado.")

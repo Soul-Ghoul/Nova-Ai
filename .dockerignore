@@ -18,6 +18,7 @@ data/*.db
 data/*.db-journal
 data/*.db-wal
 data/*.sqlite3
+data/db_config.json
 database/*.db
 
 # Entornos y secretos locales (Railway manejará las variables de entorno en la nube)

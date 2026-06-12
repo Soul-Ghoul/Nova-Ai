@@ -8,6 +8,10 @@ from ai.odoo_worker import OdooInventoryWorker
 class OdooVendorWorker(OdooInventoryWorker):
     """Worker para operaciones de soporte interno a vendedores en Odoo 19 Enterprise."""
 
+    def __init__(self, base_url: str, api_key: str, db_name: str = "", odoo_user: str = ""):
+        super().__init__(base_url, api_key, db_name, odoo_user)
+        logger.info(f"OdooVendorWorker: Gemini AI de vendedores inicializado ({self.ai_model})")
+
     async def _create_multi(self, model: str, vals_list: list[dict]) -> Any:
         url = f"{self.base_url}/json/2/{model}/create"
         payload = {

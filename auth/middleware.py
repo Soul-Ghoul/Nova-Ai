@@ -27,7 +27,15 @@ class AdminAuthMiddleware:
             if not token:
                 return JsonResponse({"detail": "No autorizado. Sesión no iniciada."}, status=401)
 
-            user = async_to_sync(db.validate_session_token)(token)
+            try:
+                user = async_to_sync(db.validate_session_token)(token)
+            except Exception as e:
+                response = JsonResponse({
+                    "detail": "Error de base de datos al validar sesión.",
+                    "error": str(e)
+                }, status=500)
+                return response
+
             if not user:
                 response = JsonResponse({"detail": "Sesión inválida o expirada."}, status=401)
                 response.delete_cookie("session_token", path="/")

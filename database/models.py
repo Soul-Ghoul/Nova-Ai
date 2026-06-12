@@ -38,6 +38,9 @@ CREATE TABLE IF NOT EXISTS call_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_call_logs_cost ON call_logs (cost_usd DESC);
+CREATE INDEX IF NOT EXISTS idx_call_logs_created ON call_logs (created_at DESC);
+
 CREATE TABLE IF NOT EXISTS token_usage_daily (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
@@ -148,6 +151,20 @@ CREATE TABLE IF NOT EXISTS agent_data_source (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES admin_users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS prompt_config (
+    user_id INTEGER NOT NULL PRIMARY KEY,
+    mode TEXT NOT NULL DEFAULT 'builder',
+    use_custom BOOLEAN DEFAULT 0,
+    voice TEXT DEFAULT 'Nova',
+    builder TEXT DEFAULT '{}',
+    raw_content TEXT DEFAULT '',
+    agent_id TEXT DEFAULT '',
+    agent_source TEXT DEFAULT 'preset',
+    agent_builder TEXT DEFAULT '{}',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES admin_users(id) ON DELETE CASCADE
+);
 """
 
 
@@ -190,6 +207,9 @@ CREATE TABLE IF NOT EXISTS call_logs (
     cost_usd DOUBLE PRECISION DEFAULT 0.0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_call_logs_cost ON call_logs (cost_usd DESC);
+CREATE INDEX IF NOT EXISTS idx_call_logs_created ON call_logs (created_at DESC);
 
 CREATE TABLE IF NOT EXISTS token_usage_daily (
     id SERIAL PRIMARY KEY,
@@ -244,6 +264,20 @@ CREATE TABLE IF NOT EXISTS agent_data_source (
     odoo_user TEXT DEFAULT '',
     is_active INTEGER DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES admin_users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS prompt_config (
+    user_id INTEGER NOT NULL PRIMARY KEY,
+    mode TEXT NOT NULL DEFAULT 'builder',
+    use_custom BOOLEAN DEFAULT false,
+    voice TEXT DEFAULT 'Nova',
+    builder TEXT DEFAULT '{}',
+    raw_content TEXT DEFAULT '',
+    agent_id TEXT DEFAULT '',
+    agent_source TEXT DEFAULT 'preset',
+    agent_builder TEXT DEFAULT '{}',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES admin_users(id) ON DELETE CASCADE
 );

@@ -50,12 +50,13 @@ async def handle_create_odoo_order(products_names: str, quantities: str, custome
         if not odoo_url or not odoo_api_key:
             return {"output": "Faltan credenciales para conectar con Odoo."}
 
-        from ai.odoo_worker import OdooInventoryWorker
-        worker = OdooInventoryWorker(
+        from ai.odoo_worker import get_odoo_worker
+        worker = get_odoo_worker(
             base_url=odoo_url,
             api_key=odoo_api_key,
             db_name=config.get("odoo_db", ""),
-            odoo_user=config.get("odoo_user", "")
+            odoo_user=config.get("odoo_user", ""),
+            user_id=user_id
         )
 
         partner_name = customer_name.strip() if customer_name else "Cliente Llamada Nova"

@@ -87,7 +87,7 @@
                 </div>
                 <a href="/admin" class="btn-ghost" id="btnAdmin">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-                    Admin
+                    <span class="hidden-mobile">Admin</span>
                 </a>
             </div>
         </header>
@@ -150,31 +150,31 @@
                         <div class="wave-bar"></div>
                     </div>
                 </div>
-            </section>
 
-            <!-- Tarjeta de prompt activo -->
-            <div id="promptInfoCard" style="
-                width:100%; max-width:700px;
-                background:rgba(13,17,23,.8); backdrop-filter:blur(12px);
-                border:1px solid rgba(255,255,255,.07); border-radius:14px;
-                padding:16px 20px; font-size:.8rem; color:#8896aa;
-                display:none;
-            ">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                    <span style="font-family:'Syne',sans-serif;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#4e5d71">Prompt Activo</span>
-                    <span id="promptModePill" style="
-                        padding:2px 10px; border-radius:20px; font-size:.72rem; font-weight:600;
-                        background:rgba(79,142,247,.1); color:#4f8ef7;
-                        border:1px solid rgba(79,142,247,.2);
-                    ">—</span>
+                <!-- Tarjeta de prompt activo -->
+                <div id="promptInfoCard" style="
+                    width:100%; max-width:700px;
+                    background:rgba(13,17,23,.8); backdrop-filter:blur(12px);
+                    border:1px solid rgba(255,255,255,.07); border-radius:14px;
+                    padding:16px 20px; font-size:.8rem; color:#8896aa;
+                    display:none;
+                ">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                        <span style="font-family:'Syne',sans-serif;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#4e5d71">Prompt Activo</span>
+                        <span id="promptModePill" style="
+                            padding:2px 10px; border-radius:20px; font-size:.72rem; font-weight:600;
+                            background:rgba(79,142,247,.1); color:#4f8ef7;
+                            border:1px solid rgba(79,142,247,.2);
+                        ">—</span>
+                    </div>
+                    <p id="promptSnippet" style="
+                        color:#5a6a7e; font-size:.78rem; line-height:1.55;
+                        font-style:italic; margin:0;
+                        display:-webkit-box; -webkit-line-clamp:3;
+                        -webkit-box-orient:vertical; overflow:hidden;
+                    ">Cargando información del prompt…</p>
                 </div>
-                <p id="promptSnippet" style="
-                    color:#5a6a7e; font-size:.78rem; line-height:1.55;
-                    font-style:italic; margin:0;
-                    display:-webkit-box; -webkit-line-clamp:3;
-                    -webkit-box-orient:vertical; overflow:hidden;
-                ">Cargando información del prompt…</p>
-            </div>
+            </section>
 
             <section class="events-section">
                 <div class="events-header">

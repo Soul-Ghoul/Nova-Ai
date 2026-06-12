@@ -2,7 +2,9 @@ import os
 import json
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 import uuid
+from loguru import logger
 from django.http import JsonResponse, HttpResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -49,6 +51,40 @@ class InventoryCreate(BaseModel):
 class PromptUpdate(BaseModel):
     name: str
     content: str
+
+
+EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+
+def _is_valid_email(value: str) -> bool:
+    return bool(value and EMAIL_RE.match(value.strip()))
+
+
+def _validate_postgres_connection_string(value: str) -> str | None:
+    connection_string = (value or "").strip()
+    if not connection_string:
+        return "La URL de conexión PostgreSQL es requerida."
+
+    try:
+        parsed = urlparse(connection_string)
+    except Exception:
+        return "La URL de conexión PostgreSQL tiene un formato inválido."
+
+    if parsed.scheme not in ("postgres", "postgresql"):
+        return "La URL de conexión PostgreSQL debe iniciar con postgres:// o postgresql://."
+
+    if not parsed.hostname:
+        return "La URL de conexión PostgreSQL debe incluir un host válido."
+
+    try:
+        port = parsed.port
+    except ValueError:
+        return "El puerto de PostgreSQL debe ser numérico."
+
+    if port is not None and not (1 <= port <= 65535):
+        return "El puerto de PostgreSQL debe estar entre 1 y 65535."
+
+    return None
 
 
 # --- Extensiones ---
@@ -283,110 +319,68 @@ PROMPT_CONFIG_PATH = str(_PROJECT_ROOT / "data" / "prompt_config.json")
 async def prompt_config_handler(request):
     user_id = request.admin_user["id"]
     loader = _get_prompt_loader()
-    config_path = loader._get_config_path(user_id)
 
     if request.method == "GET":
-        if os.path.exists(config_path):
-            with open(config_path, "r", encoding="utf-8") as f:
-                return JsonResponse(json.load(f))
+        # Cargar desde BD
+        config = await _db.load_prompt_config(user_id)
+        if config:
+            return JsonResponse(config)
         return JsonResponse({"use_custom": False, "mode": "builder", "raw_content": "", "builder": {}})
     
     elif request.method == "POST":
         try:
             data = json.loads(request.body.decode("utf-8"))
-            os.makedirs(str(_PROJECT_ROOT / "data"), exist_ok=True)
             
-            existing_config = {}
-            if os.path.exists(config_path):
-                try:
-                    with open(config_path, "r", encoding="utf-8") as f:
-                        existing_config = json.load(f)
-                except Exception:
-                    pass
-                    
             mode = data.get("mode", "builder")
-            os.makedirs(loader.prompts_dir, exist_ok=True)
-            
-            existing_config["mode"] = mode
-            if "use_custom" in data:
-                existing_config["use_custom"] = data["use_custom"]
-            if "voice" in data:
-                existing_config["voice"] = data["voice"]
-            
             compiled = ""
             agent_name = "Nova"
 
             if mode == "builder":
                 builder = data.get("builder", {})
                 if builder:
-                    existing_config["builder"] = builder
                     compiled = loader._build_from_config(builder)
                     agent_name = builder.get("identity", {}).get("name", "Nova")
-                    
-                    filepath_md = os.path.join(loader.prompts_dir, f"nova_builder_{user_id}.md")
-                    with open(filepath_md, "w", encoding="utf-8") as f:
-                        f.write(compiled)
                         
             elif mode == "raw":
                 raw_content = data.get("raw_content", "").strip()
-                existing_config["raw_content"] = raw_content
                 compiled = raw_content
                 agent_name = "Raw Agent"
-                
-                filepath_yaml = os.path.join(loader.prompts_dir, f"nova_default_{user_id}.yaml")
-                with open(filepath_yaml, "w", encoding="utf-8") as f:
-                    f.write(raw_content)
-                    
+                        
             elif mode == "agent":
-                agent_id = data.get("agent_id")
-                agent_source = data.get("agent_source", "preset")
                 agent_builder = data.get("agent_builder") or data.get("builder", {})
-                
-                existing_config["agent_id"] = agent_id
-                existing_config["agent_source"] = agent_source
                 if agent_builder:
-                    existing_config["agent_builder"] = agent_builder
                     compiled = loader._build_from_config(agent_builder)
                     agent_name = agent_builder.get("identity", {}).get("name", "Nova")
-                    
-                    if agent_source == "custom" and agent_id:
-                        filepath_md = os.path.join(loader.prompts_dir, f"nova_custom_{agent_id}.md")
-                        with open(filepath_md, "w", encoding="utf-8") as f:
-                            f.write(compiled)
-                    else:
-                        filepath_md = os.path.join(loader.prompts_dir, f"nova_agent_{user_id}.md")
-                        with open(filepath_md, "w", encoding="utf-8") as f:
-                            f.write(compiled)
-                        
-                        if agent_id:
-                            import yaml
-                            filepath_yaml = os.path.join(loader.prompts_dir, f"nova_{agent_id}_{user_id}.yaml")
-                            preset_data = {
-                                "name": agent_builder.get("identity", {}).get("name", "Nova"),
-                                "company": agent_builder.get("identity", {}).get("company", "la empresa"),
-                                "role": agent_builder.get("identity", {}).get("role", "asistente"),
-                                "greeting": agent_builder.get("greeting", ""),
-                                "language": agent_builder.get("language", "es"),
-                                "tone": agent_builder.get("tone", "friendly"),
-                                "personality": agent_builder.get("personality", []),
-                                "capabilities": agent_builder.get("capabilities", []),
-                                "rules": agent_builder.get("rules", []),
-                                "custom_instructions": agent_builder.get("custom_instructions", ""),
-                                "system_prompt": compiled
-                            }
-                            with open(filepath_yaml, "w", encoding="utf-8") as f:
-                                yaml.safe_dump(preset_data, f, allow_unicode=True, default_flow_style=False)
 
-            # Persistir el agente y system prompt activo del administrador en la base de datos
-            # Usamos 'active_agent' como clave de agente activo para este usuario
-            if compiled:
-                await _db.save_admin_agent(user_id, "active_agent", agent_name, compiled)
+            # Guardar en BD
+            config_to_save = {
+                "mode": mode,
+                "use_custom": data.get("use_custom", False),
+                "voice": data.get("voice", "Nova"),
+                "builder": data.get("builder", {}),
+                "raw_content": data.get("raw_content", ""),
+                "agent_id": data.get("agent_id", ""),
+                "agent_source": data.get("agent_source", "preset"),
+                "agent_builder": data.get("agent_builder", {}),
+            }
+            
+            await _db.save_prompt_config(user_id, config_to_save)
+            loader.set_prompt_config_cache(user_id, config_to_save)
 
+            # Guardar también en archivo JSON local como respaldo
+            os.makedirs(str(_PROJECT_ROOT / "data"), exist_ok=True)
+            config_path = loader._get_config_path(user_id)
             with open(config_path, "w", encoding="utf-8") as f:
-                json.dump(existing_config, f, ensure_ascii=False, indent=2)
+                json.dump(config_to_save, f, ensure_ascii=False, indent=2)
+
+            # También guardar agent en admin_agents para compatibilidad
+            if compiled:
+                await _db.save_admin_agent(user_id, "active_agent", agent_name, compiled, config_to_save)
                 
-            return JsonResponse({"success": True, "message": "Configuración de prompt guardada e implementada físicamente"})
+            logger.info(f"✅ Config guardada: BD + JSON local (user_id={user_id}, modo={mode})")
+            return JsonResponse({"success": True, "message": "✅ Configuración guardada (BD + local)"})
         except Exception as e:
+            logger.error(f"Error en prompt_config_handler: {e}")
             return JsonResponse({"detail": str(e)}, status=400)
             
     return HttpResponse(status=405)
@@ -397,13 +391,20 @@ async def get_active_prompt_preview(request):
         user_id = request.admin_user["id"]
         from ai.prompt_loader import PromptLoader
         loader = PromptLoader()
+        
+        # Cargar texto del prompt
         text = loader.load(user_id=user_id)
-        config_path = loader._get_config_path(user_id)
+        
+        # Cargar config desde BD
+        config_data = await _db.load_prompt_config(user_id)
+        
         return JsonResponse({
             "prompt_preview": text[:500] + "..." if len(text) > 500 else text,
             "total_chars": len(text),
-            "config_path": config_path,
-            "config_exists": os.path.exists(config_path)
+            "config_stored": bool(config_data),
+            "config_exists": bool(config_data),
+            "storage_type": "PostgreSQL (persistente en Railway)" if _db.db_type == "postgres" else "SQLite (local)",
+            "mode": config_data.get("mode", "builder") if config_data else "builder"
         })
     return HttpResponse(status=405)
 
@@ -489,6 +490,10 @@ async def update_db_config(request):
         try:
             body = json.loads(request.body.decode("utf-8"))
             data = DbConfigUpdate(**body)
+            if data.db_type in ("postgres_local", "postgres_railway"):
+                validation_error = _validate_postgres_connection_string(data.postgres_url or "")
+                if validation_error:
+                    return JsonResponse({"success": False, "message": validation_error}, status=400)
             await _db.reconnect(data.db_type, data.sqlite_path, data.postgres_url)
             return JsonResponse({"success": True, "message": "Base de datos reconectada exitosamente"})
         except Exception as e:
@@ -501,6 +506,10 @@ async def test_db_config(request):
         try:
             body = json.loads(request.body.decode("utf-8"))
             data = DbConfigUpdate(**body)
+            if data.db_type in ("postgres_local", "postgres_railway"):
+                validation_error = _validate_postgres_connection_string(data.postgres_url or "")
+                if validation_error:
+                    return JsonResponse({"success": False, "message": validation_error})
             await _db.test_connection(data.db_type, data.sqlite_path, data.postgres_url)
             return JsonResponse({"success": True, "message": "Prueba de conexión exitosa"})
         except Exception as e:
@@ -621,6 +630,14 @@ async def save_agent_data_source(request):
             if odoo_key and "****" in odoo_key and existing:
                 odoo_key = existing.get("odoo_api_key", "")
 
+            if data.source_type in ("postgres_local", "postgres_railway"):
+                validation_error = _validate_postgres_connection_string(pg_conn)
+                if validation_error:
+                    return JsonResponse({"detail": validation_error}, status=400)
+
+            if data.source_type == "odoo" and data.odoo_user and not _is_valid_email(data.odoo_user):
+                return JsonResponse({"detail": "El campo Usuario / Email de Odoo debe tener un formato de correo válido."}, status=400)
+
             await _db.save_agent_data_source(
                 user_id=user_id,
                 source_type=data.source_type,
@@ -655,6 +672,9 @@ async def test_agent_data_source(request):
                     existing = await _db.get_agent_data_source(user_id)
                     if existing:
                         pg_conn = existing.get("pg_connection_string", "")
+                validation_error = _validate_postgres_connection_string(pg_conn)
+                if validation_error:
+                    return JsonResponse({"success": False, "message": validation_error})
                 if not pg_conn:
                     return JsonResponse({"success": False, "message": "URL de conexión PostgreSQL requerida"})
                 try:
@@ -669,10 +689,13 @@ async def test_agent_data_source(request):
             if source_type == "odoo":
                 odoo_url = body.get("odoo_url", "")
                 odoo_api_key = body.get("odoo_api_key", "")
+                odoo_user = body.get("odoo_user", "")
                 if odoo_api_key and "****" in odoo_api_key:
                     existing = await _db.get_agent_data_source(user_id)
                     if existing:
                         odoo_api_key = existing.get("odoo_api_key", "")
+                if odoo_user and not _is_valid_email(odoo_user):
+                    return JsonResponse({"success": False, "message": "El campo Usuario / Email de Odoo debe tener un formato de correo válido."})
                 if not odoo_url or not odoo_api_key:
                     return JsonResponse({"success": False, "message": "URL de Odoo y API Key son requeridos"})
                 from ai.odoo_worker import OdooInventoryWorker
@@ -680,7 +703,7 @@ async def test_agent_data_source(request):
                     base_url=odoo_url,
                     api_key=odoo_api_key,
                     db_name=body.get("odoo_db", ""),
-                    odoo_user=body.get("odoo_user", ""),
+                    odoo_user=odoo_user,
                 )
                 result = await worker.test_connection()
                 return JsonResponse(result)
@@ -750,10 +773,12 @@ async def odoo_agents_handler(request):
             existing_config["agent_source"] = "preset"
             existing_config["odoo_agent_type"] = agent_id
 
-            preset_prompt = loader.load(f"nova_{agent_id}", user_id=user_id)
+            preset_prompt = loader.load(f"nova_{agent_id}")
             agent_name = "Soporte en Ventas (Odoo)" if agent_id == "odoo_sales" else "Soporte a Vendedores (Odoo)"
             
-            await _db.save_admin_agent(user_id, "active_agent", agent_name, preset_prompt)
+            await _db.save_admin_agent(user_id, "active_agent", agent_name, preset_prompt, existing_config)
+            await _db.save_prompt_config(user_id, existing_config)
+            loader.set_prompt_config_cache(user_id, existing_config)
 
             os.makedirs(os.path.dirname(config_path), exist_ok=True)
             with open(config_path, "w", encoding="utf-8") as f:

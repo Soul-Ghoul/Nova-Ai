@@ -1,5 +1,32 @@
 const API_BASE = '/api/admin';
 
+const HEADER_MAP = {
+    extensions: {
+        title: 'Directorio de Extensiones',
+        sub: 'Registra y administra las extensiones telefónicas de los departamentos y empleados.'
+    },
+    inventory: {
+        title: 'Catálogo de Inventario',
+        sub: 'Administra los productos de tecnología, precios, stock y etiquetas de búsqueda.'
+    },
+    prompts: {
+        title: 'System Prompt del Agente',
+        sub: 'Diseña la identidad, tono, personalidad y capacidades operativas de la IA.'
+    },
+    tokens: {
+        title: 'Panel de Consumo de Tokens',
+        sub: 'Controla el consumo de tokens de entrada/salida y analiza los costos acumulados.'
+    },
+    users: {
+        title: 'Gestión de Usuarios',
+        sub: 'Administra las cuentas de usuario y los privilegios de acceso al panel.'
+    },
+    profile: {
+        title: 'Mi Perfil y Ajustes',
+        sub: 'Gestiona tus datos de acceso a la cuenta y configura la conexión de la base de datos externa.'
+    }
+};
+
 const P_VALS = new Set(['human_sales','warm','formal','concise','detailed','empathetic','patient','proactive','confirm','repeat_before_transfer','list_options']);
 const C_VALS = new Set(['transfer','directory','inventory','messages','general','schedule','support','faq','order_status']);
 const R_VALS = new Set(['character_lock','no_hallucinations','cross_validation','synonym_search','no_personal_data','abuse_protection']);
@@ -201,6 +228,9 @@ class NovaAdmin {
     constructor() {
         this.adminUser = null;
         this.adminUserId = null;
+        this.inventoryData = [];
+        this.inventoryPage = 1;
+        this.inventoryLimit = 10;
         
         this.setupTabDataLoading();
         this.setupExtensions();
@@ -208,9 +238,6 @@ class NovaAdmin {
         this.setupDataSource();
         this.setupPrompts();
         this.setupAgents();
-        this.setupTools();
-        this.setupSessions();
-        this.setupLogs();
         this.setupUsers();
         this.setupAuth();
         this.setupOdooAgents();
@@ -225,6 +252,7 @@ class NovaAdmin {
                 if (d.authenticated && d.user) {
                     this.adminUser = d.user;
                     this.adminUserId = d.user.id;
+                    
                     if (this.adminUser && this.adminUser.role === 'admin') {
                         const tabBtn = document.getElementById('tabUsersBtn');
                         if (tabBtn) tabBtn.style.display = 'inline-block';
@@ -236,6 +264,7 @@ class NovaAdmin {
         }
         await this.loadExtensions();
         await this.checkOdooVisibility();
+        this.updatePageHeader('extensions');
     }
 
     async api(method, path, body = null) {
@@ -301,12 +330,9 @@ class NovaAdmin {
             const tab = e.target.closest('.tab');
             if (!tab) return;
             const name = tab.dataset.tab;
+            this.updatePageHeader(name);
             if (name === 'inventory')  this.loadInventory();
-            if (name === 'datasource') this.loadDataSource();
             if (name === 'prompts')    this.loadPromptPanel();
-            if (name === 'tools')      this.loadTools();
-            if (name === 'sessions')   this.loadSessions();
-            if (name === 'logs')       this.loadLogs();
             if (name === 'database')   this.loadDatabaseConfig();
             if (name === 'users')      this.loadUsers();
         });
@@ -316,6 +342,48 @@ class NovaAdmin {
             if (btn?.dataset.mode === 'agents') this.renderAgentCards();
             if (btn?.dataset.mode === 'odoo-agents') this.loadOdooAgents();
         });
+
+        document.getElementById('btnProfile')?.addEventListener('click', () => {
+            const sidebar = document.getElementById('profileSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar?.classList.add('open');
+            overlay?.classList.add('open');
+            
+            this.loadDataSource();
+            
+            if (this.adminUser) {
+                const usernameEl = document.getElementById('profUsername');
+                if (usernameEl) usernameEl.value = this.adminUser.username || '';
+                const roleEl = document.getElementById('profRole');
+                if (roleEl) roleEl.value = this.adminUser.role === 'admin' ? 'Administrador' : 'Usuario Normal';
+                
+                const name = this.adminUser.username || 'Admin';
+                const avatarEl = document.querySelector('.profile-admin-avatar');
+                if (avatarEl) avatarEl.textContent = name.charAt(0).toUpperCase();
+                const nameEl = document.getElementById('sidebarAdminName');
+                if (nameEl) nameEl.textContent = name;
+                const sidebarRoleEl = document.querySelector('.profile-admin-role');
+                if (sidebarRoleEl) sidebarRoleEl.textContent = this.adminUser.role === 'admin' ? 'Super User' : 'Standard User';
+            }
+        });
+
+        const closeSidebar = () => {
+            document.getElementById('profileSidebar')?.classList.remove('open');
+            document.getElementById('sidebarOverlay')?.classList.remove('open');
+        };
+        document.getElementById('btnCloseProfileSidebar')?.addEventListener('click', closeSidebar);
+        document.getElementById('sidebarOverlay')?.addEventListener('click', closeSidebar);
+    }
+
+    updatePageHeader(tabName) {
+        const titleEl = document.getElementById('mainPageTitle');
+        const subEl = document.getElementById('mainPageSub');
+        const info = HEADER_MAP[tabName] || {
+            title: 'Configuración del Agente',
+            sub: 'Administra extensiones, inventario, prompts del sistema y monitorea la actividad'
+        };
+        if (titleEl) titleEl.textContent = info.title;
+        if (subEl) subEl.textContent = info.sub;
     }
 
     // ── EXTENSIONS ────────────────────────────────────────────────────────────
@@ -383,7 +451,6 @@ class NovaAdmin {
     }
 
     async loadInventory() {
-        const tbody = document.getElementById('inventoryBody');
         try {
             if (this.activeSourceType === undefined) {
                 try {
@@ -399,29 +466,83 @@ class NovaAdmin {
             if (addCard) addCard.style.display = isOdoo ? 'none' : 'block';
 
             const data = await this.api('GET', '/inventory');
-            if (!data.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No hay productos en inventario</td></tr>'; return; }
-            tbody.innerHTML = data.map(item => {
-                const stock = parseInt(item.stock);
-                const sc = stock > 5 ? 'pill-green' : stock > 0 ? 'pill-amber' : 'pill-red';
-                const tagsHtml = item.tags
-                    ? item.tags.split(',').map(t => t.trim()).filter(Boolean)
-                        .map(t => `<span style="display:inline-block;background:rgba(79,142,247,.15);color:var(--accent);border:1px solid rgba(79,142,247,.3);border-radius:4px;padding:1px 6px;font-size:.68rem;margin:1px">${t}</span>`).join('')
-                    : '';
-                return `<tr>
-                    <td><div><strong>${item.product_name}</strong></div>
-                        ${item.description ? `<div style="font-size:.75rem;color:var(--text-3)">${item.description}</div>` : ''}
-                        ${tagsHtml ? `<div style="margin-top:3px">${tagsHtml}</div>` : ''}</td>
-                    <td>${item.brand || '—'}</td>
-                    <td>${item.category || '—'}</td>
-                    <td style="color:#34d399;font-weight:500">$${parseFloat(item.price).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
-                    <td><span class="pill ${sc}">${stock} uds.</span></td>
-                    <td>${isOdoo 
-                        ? `<span style="font-size:.72rem;color:var(--text-3);border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);padding:2px 8px;border-radius:4px;">Solo Lectura</span>`
-                        : `<button class="btn-danger" onclick="window.admin.deleteProduct(${item.id})">Eliminar</button>`
-                    }</td>
-                </tr>`;
-            }).join('');
-        } catch (err) { tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Error: ${err.message}</td></tr>`; }
+            this.inventoryData = data || [];
+            this.inventoryPage = 1;
+            this.renderInventory();
+        } catch (err) {
+            const tbody = document.getElementById('inventoryBody');
+            if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Error: ${err.message}</td></tr>`;
+        }
+    }
+
+    renderInventory() {
+        const tbody = document.getElementById('inventoryBody');
+        const pagEl = document.getElementById('inventoryPagination');
+        if (!tbody) return;
+
+        const isOdoo = this.activeSourceType === 'odoo';
+        const total = this.inventoryData.length;
+
+        if (!total) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No hay productos en inventario</td></tr>';
+            if (pagEl) pagEl.innerHTML = '';
+            return;
+        }
+
+        const maxPage = Math.ceil(total / this.inventoryLimit);
+        if (this.inventoryPage > maxPage) this.inventoryPage = maxPage;
+        if (this.inventoryPage < 1) this.inventoryPage = 1;
+
+        const start = (this.inventoryPage - 1) * this.inventoryLimit;
+        const end = Math.min(start + this.inventoryLimit, total);
+        const pageData = this.inventoryData.slice(start, end);
+
+        tbody.innerHTML = pageData.map(item => {
+            const stock = parseInt(item.stock);
+            const sc = stock > 5 ? 'pill-green' : stock > 0 ? 'pill-amber' : 'pill-red';
+            const tagsHtml = item.tags
+                ? item.tags.split(',').map(t => t.trim()).filter(Boolean)
+                    .map(t => `<span style="display:inline-block;background:rgba(79,142,247,.15);color:var(--accent);border:1px solid rgba(79,142,247,.3);border-radius:4px;padding:1px 6px;font-size:.68rem;margin:1px">${t}</span>`).join('')
+                : '';
+            return `<tr>
+                <td><div><strong>${item.product_name}</strong></div>
+                    ${item.description ? `<div style="font-size:.75rem;color:var(--text-3)">${item.description}</div>` : ''}
+                    ${tagsHtml ? `<div style="margin-top:3px">${tagsHtml}</div>` : ''}</td>
+                <td>${item.brand || '—'}</td>
+                <td>${item.category || '—'}</td>
+                <td style="color:#34d399;font-weight:500">$${parseFloat(item.price).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
+                <td><span class="pill ${sc}">${stock} uds.</span></td>
+                <td>${isOdoo 
+                    ? `<span style="font-size:.72rem;color:var(--text-3);border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);padding:2px 8px;border-radius:4px;">Solo Lectura</span>`
+                    : `<button class="btn-danger" onclick="window.admin.deleteProduct(${item.id})">Eliminar</button>`
+                }</td>
+            </tr>`;
+        }).join('');
+
+        if (pagEl) {
+            pagEl.innerHTML = `
+                <span style="font-size:0.8rem;color:var(--text-2)">Mostrando ${start + 1}-${end} de ${total}</span>
+                <div style="display:flex;gap:4px">
+                    <button class="btn-ghost" id="btnPrevInv" ${this.inventoryPage === 1 ? 'disabled style="opacity:0.4;cursor:default;"' : ''} style="padding:4px 10px;font-size:0.8rem">&lt;</button>
+                    <span style="display:flex;align-items:center;padding:0 8px;font-size:0.8rem;font-weight:500">${this.inventoryPage} / ${maxPage}</span>
+                    <button class="btn-ghost" id="btnNextInv" ${this.inventoryPage === maxPage ? 'disabled style="opacity:0.4;cursor:default;"' : ''} style="padding:4px 10px;font-size:0.8rem">&gt;</button>
+                </div>
+            `;
+
+            document.getElementById('btnPrevInv')?.addEventListener('click', () => {
+                if (this.inventoryPage > 1) {
+                    this.inventoryPage--;
+                    this.renderInventory();
+                }
+            });
+
+            document.getElementById('btnNextInv')?.addEventListener('click', () => {
+                if (this.inventoryPage < maxPage) {
+                    this.inventoryPage++;
+                    this.renderInventory();
+                }
+            });
+        }
     }
 
     async deleteProduct(id) {
@@ -437,6 +558,48 @@ class NovaAdmin {
 
         document.getElementById('btnSaveDataSource')?.addEventListener('click', () => this.saveDataSource());
         document.getElementById('btnTestDataSource')?.addEventListener('click', () => this.testDataSource());
+    }
+
+    _isValidEmail(value) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((value || '').trim());
+    }
+
+    _validatePostgresConnectionString(value) {
+        const connectionString = (value || '').trim();
+        if (!connectionString) return 'La URL de conexión PostgreSQL es requerida.';
+
+        let parsed;
+        try {
+            parsed = new URL(connectionString);
+        } catch (_) {
+            return 'La URL de conexión PostgreSQL tiene un formato inválido.';
+        }
+
+        if (!['postgres:', 'postgresql:'].includes(parsed.protocol)) {
+            return 'La URL de conexión PostgreSQL debe iniciar con postgres:// o postgresql://.';
+        }
+
+        if (!parsed.hostname) {
+            return 'La URL de conexión PostgreSQL debe incluir un host válido.';
+        }
+
+        if (parsed.port && !/^\d+$/.test(parsed.port)) {
+            return 'El puerto de PostgreSQL debe ser numérico.';
+        }
+
+        return '';
+    }
+
+    _validateDataSourceForm(sourceType, payload) {
+        if (sourceType === 'postgres_local' || sourceType === 'postgres_railway') {
+            return this._validatePostgresConnectionString(payload.pg_connection_string);
+        }
+
+        if (sourceType === 'odoo' && payload.odoo_user && !this._isValidEmail(payload.odoo_user)) {
+            return 'El campo Usuario / Email de Odoo debe tener un formato de correo válido.';
+        }
+
+        return '';
     }
 
     _toggleDsFields() {
@@ -495,6 +658,13 @@ class NovaAdmin {
             odoo_api_key: document.getElementById('dsOdooApiKey')?.value || '',
             odoo_user: document.getElementById('dsOdooUser')?.value || '',
         };
+
+        const validationError = this._validateDataSourceForm(sourceType, payload);
+        if (validationError) {
+            this.toast(validationError, 'error');
+            return;
+        }
+
         try {
             const res = await this.api('POST', '/agent-data-source/save', payload);
             this.activeSourceType = sourceType;
@@ -525,21 +695,44 @@ class NovaAdmin {
             odoo_user: document.getElementById('dsOdooUser')?.value || '',
         };
 
+        const validationError = this._validateDataSourceForm(sourceType, payload);
+        if (validationError) {
+            innerEl.textContent = `❌ ${validationError}`;
+            innerEl.style.background = 'rgba(248,113,113,.08)';
+            innerEl.style.color = '#f87171';
+            innerEl.style.border = '1px solid rgba(248,113,113,.3)';
+            return;
+        }
+
         try {
             const res = await this.api('POST', '/agent-data-source/test', payload);
+            const cleanMsg = (msg) => {
+                if (typeof msg === 'string') {
+                    const lowerMsg = msg.toLowerCase();
+                    if (lowerMsg.includes('<html') || lowerMsg.includes('<body') || lowerMsg.includes('<script') || lowerMsg.includes('</html')) {
+                        return 'El servidor de Odoo respondió con una página web (HTML). Verifica que la URL de Odoo y el subdominio sean correctos.';
+                    }
+                }
+                return msg;
+            };
             if (res.success) {
-                innerEl.textContent = `✅ ${res.message}`;
+                innerEl.textContent = `✅ ${cleanMsg(res.message)}`;
                 innerEl.style.background = 'rgba(52,211,153,.08)';
                 innerEl.style.color = '#34d399';
                 innerEl.style.border = '1px solid rgba(52,211,153,.3)';
             } else {
-                innerEl.textContent = `❌ ${res.message}`;
+                innerEl.textContent = `❌ ${cleanMsg(res.message)}`;
                 innerEl.style.background = 'rgba(248,113,113,.08)';
                 innerEl.style.color = '#f87171';
                 innerEl.style.border = '1px solid rgba(248,113,113,.3)';
             }
         } catch (err) {
-            innerEl.textContent = `❌ Error: ${err.message}`;
+            const msg = err.message || '';
+            const lowerMsg = msg.toLowerCase();
+            const cleanMsg = (lowerMsg.includes('<html') || lowerMsg.includes('<body') || lowerMsg.includes('<script') || lowerMsg.includes('</html'))
+                ? 'El servidor respondió con código HTML en lugar de JSON. Verifica la configuración.'
+                : msg;
+            innerEl.textContent = `❌ Error: ${cleanMsg}`;
             innerEl.style.background = 'rgba(248,113,113,.08)';
             innerEl.style.color = '#f87171';
             innerEl.style.border = '1px solid rgba(248,113,113,.3)';
@@ -568,15 +761,25 @@ class NovaAdmin {
         this.renderBuilderAgentCards();
     }
 
-    updateSourceBadge(mode) {
+    updateSourceBadge(mode, agentId = null) {
         const badge = document.getElementById('promptStatusBadge');
         if (!badge) return;
-        const modes = {
-            builder: { text: '🎨 Constructor Visual', bg: 'var(--accent-dim)', color: 'var(--accent)', border: 'rgba(79,142,247,.3)' },
-            raw:     { text: '📝 Texto / JSON', bg: 'rgba(52,211,153,.1)', color: '#34d399', border: 'rgba(52,211,153,.3)' },
-            agent:   { text: '🤖 Agente Preconfigurado', bg: 'rgba(251,191,36,.1)', color: '#fbbf24', border: 'rgba(251,191,36,.3)' },
-        };
-        const m = modes[mode] || { text: '📂 Archivos del sistema', bg: 'rgba(103,232,249,.1)', color: 'var(--cyan)', border: 'rgba(103,232,249,.25)' };
+        
+        let m;
+        if (mode === 'builder') {
+            m = { text: '🎨 Constructor Visual', bg: 'var(--accent-dim)', color: 'var(--accent)', border: 'rgba(79,142,247,.3)' };
+        } else if (mode === 'raw') {
+            m = { text: '📝 Texto / JSON', bg: 'rgba(52,211,153,.1)', color: '#34d399', border: 'rgba(52,211,153,.3)' };
+        } else if (mode === 'agent') {
+            if (agentId === 'odoo_sales' || agentId === 'odoo_vendor_support' || (agentId && agentId.startsWith('odoo_'))) {
+                m = { text: '🟣 Agente Odoo', bg: 'rgba(168,85,247,.1)', color: '#a855f7', border: 'rgba(168,85,247,.3)' };
+            } else {
+                m = { text: '🤖 Agente Preconfigurado', bg: 'rgba(251,191,36,.1)', color: '#fbbf24', border: 'rgba(251,191,36,.3)' };
+            }
+        } else {
+            m = { text: '📂 Archivos del sistema', bg: 'rgba(103,232,249,.1)', color: 'var(--cyan)', border: 'rgba(103,232,249,.25)' };
+        }
+        
         badge.textContent = m.text;
         badge.style.background = m.bg;
         badge.style.color = m.color;
@@ -636,7 +839,8 @@ class NovaAdmin {
             await this.checkOdooVisibility();
             const config = await this.api('GET', '/prompt-config');
             const mode = config.mode || 'none';
-            this.updateSourceBadge(mode);
+            const agentId = config.agent_id || null;
+            this.updateSourceBadge(mode, agentId);
 
             // Cambiar la pestaña de modo activa en la UI de forma programática
             const tabName = mode === 'agent' ? 'agents' : (mode === 'raw' ? 'raw' : 'builder');
@@ -654,7 +858,7 @@ class NovaAdmin {
                 this._selectedAgentSource = config.agent_source;
             }
 
-            if (config.builder && Object.keys(config.builder).length) this.restoreBuilder(config.builder);
+            if (config.builder && typeof config.builder === 'object' && Object.keys(config.builder).length) this.restoreBuilder(config.builder);
             if (config.raw_content) {
                 const el = document.getElementById('rawPromptInput');
                 if (el) el.value = config.raw_content;
@@ -664,24 +868,47 @@ class NovaAdmin {
             await this.renderBuilderAgentCards();
 
             if (mode === 'agent' && this._selectedAgentId && this._selectedAgentSource) {
-                this.selectAgent(this._selectedAgentId, this._selectedAgentSource);
-                const ab = config.agent_builder || config.builder;
-                if (ab && Object.keys(ab).length) {
-                    const id = ab.identity || {};
-                    if (id.name) document.getElementById('ag-name').value = id.name;
-                    if (id.company) document.getElementById('ag-company').value = id.company;
-                    if (id.role) document.getElementById('ag-role').value = id.role;
-                    if (ab.greeting) document.getElementById('ag-greeting').value = ab.greeting;
+                const isOdoo = this._selectedAgentId.startsWith('odoo_');
+                if (isOdoo) {
+                    const odooTab = document.querySelector('[data-mode="odoo-agents"]');
+                    if (odooTab) odooTab.click();
+                    await this.loadOdooAgents();
+                    this.selectOdooAgent(this._selectedAgentId);
+                } else {
+                    this.selectAgent(this._selectedAgentId, this._selectedAgentSource);
+                    const ab = config.agent_builder || config.builder;
+                    if (ab && typeof ab === 'object' && Object.keys(ab).length) {
+                        const id = ab.identity || {};
+                        if (id.name) document.getElementById('ag-name').value = id.name;
+                        if (id.company) document.getElementById('ag-company').value = id.company;
+                        if (id.role) document.getElementById('ag-role').value = id.role;
+                        if (ab.greeting) document.getElementById('ag-greeting').value = ab.greeting;
+                    }
                 }
+            }
+            
+            try {
+                const activeRes = await this.api('GET', '/prompt-config/active');
+                const previewEl = document.getElementById('promptPreview');
+                if (previewEl && activeRes.prompt_preview) {
+                    previewEl.value = activeRes.prompt_preview;
+                }
+            } catch (e) {
+                console.error("Error al cargar preview activo:", e);
             }
         } catch (err) {
             this.updateSourceBadge('none');
             await this.renderAgentCards();
         }
-        this.updateBuilderPreview();
+        
+        const activeTab = document.querySelector('.mode-tab.active');
+        if (activeTab && activeTab.dataset.mode === 'builder') {
+            this.updateBuilderPreview();
+        }
     }
 
     restoreBuilder(b) {
+        if (!b || typeof b !== 'object') return;
         const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
         const id = b.identity || {};
         set('b-name', id.name); set('b-company', id.company); set('b-role', id.role);
@@ -1017,7 +1244,7 @@ class NovaAdmin {
         };
         try {
             await this.api('POST', '/prompt-config', payload);
-            this.updateSourceBadge('agent');
+            this.updateSourceBadge('agent', this._selectedAgentId);
             this.updateBuilderPreview();
             this.toast(`✅ Agente "${name}" aplicado y activado.`);
         } catch (err) { this.toast(err.message, 'error'); }
@@ -1054,61 +1281,7 @@ class NovaAdmin {
         } catch (err) { this.toast(err.message, 'error'); }
     }
 
-    // ── TOOLS ─────────────────────────────────────────────────────────────────
-    setupTools() {
-        document.getElementById('btnSaveTools')?.addEventListener('click', () => {
-            try { JSON.parse(document.getElementById('toolsEditor').value); this.toast('JSON válido. Reinicia el servidor para aplicarlo.'); }
-            catch { this.toast('JSON inválido. Verifica la sintaxis.', 'error'); }
-        });
-    }
 
-    async loadTools() {
-        try {
-            const res = await fetch('/static/js/../../../config/tools/default_tools.json');
-            if (res.ok) { document.getElementById('toolsEditor').value = JSON.stringify(await res.json(), null, 2); return; }
-        } catch {}
-        document.getElementById('toolsEditor').value = '{\n  "tools": []\n}';
-    }
-
-    // ── SESSIONS ──────────────────────────────────────────────────────────────
-    setupSessions() {
-        document.getElementById('btnRefreshSessions')?.addEventListener('click', () => this.loadSessions());
-    }
-
-    async loadSessions() {
-        const tbody = document.getElementById('sessionsBody');
-        try {
-            const data = await this.api('GET', '/sessions');
-            if (!data.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Sin sesiones activas</td></tr>'; return; }
-            tbody.innerHTML = data.map(s => `
-                <tr>
-                    <td style="font-family:var(--font-mono);font-size:.75rem">${s.session_id.substring(0,12)}…</td>
-                    <td>${s.source === 'web' ? '🌐 Web' : '📞 Asterisk'}</td>
-                    <td>${s.duration}s</td>
-                    <td><span class="pill ${s.active ? 'pill-green' : 'pill-red'}">${s.active ? 'Activa' : 'Finalizada'}</span></td>
-                </tr>`).join('');
-        } catch (err) { tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Error: ${err.message}</td></tr>`; }
-    }
-
-    // ── LOGS ──────────────────────────────────────────────────────────────────
-    setupLogs() {
-        document.getElementById('btnRefreshLogs')?.addEventListener('click', () => this.loadLogs());
-    }
-
-    async loadLogs() {
-        const tbody = document.getElementById('logsBody');
-        try {
-            const data = await this.api('GET', '/logs?limit=50');
-            if (!data.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Sin registros de llamadas</td></tr>'; return; }
-            tbody.innerHTML = data.map(log => `
-                <tr>
-                    <td>${log.created_at ? log.created_at.replace('T', ' ').substring(0, 19) : '—'}</td>
-                    <td>${log.source === 'web' ? '🌐 Web' : '📞 Asterisk'}</td>
-                    <td>${parseFloat(log.duration || 0).toFixed(1)}s</td>
-                    <td style="font-size:.75rem;font-family:var(--font-mono)">${log.actions_taken || '—'}</td>
-                </tr>`).join('');
-        } catch (err) { tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Error: ${err.message}</td></tr>`; }
-    }
 
     // ── USERS MANAGEMENT ──────────────────────────────────────────────────────
 
@@ -1305,7 +1478,7 @@ class NovaAdmin {
     async applyOdooAgent(agentId) {
         try {
             const res = await this.api('POST', '/odoo-agents', { agent_id: agentId });
-            this.updateSourceBadge('agent');
+            this.updateSourceBadge('agent', agentId);
             this.toast(`✅ Agente Odoo activado con éxito: ${res.message || ''}`);
         } catch (err) {
             this.toast(err.message, 'error');

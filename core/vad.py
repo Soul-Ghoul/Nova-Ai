@@ -3,7 +3,7 @@ import struct
 from loguru import logger
 
 class VoiceActivityDetector:
-    def __init__(self, sample_rate: int = 16000, frame_duration_ms: int = 20, threshold_ratio: float = 2.2, hangover_ms: int = 400):
+    def __init__(self, sample_rate: int = 16000, frame_duration_ms: int = 20, threshold_ratio: float = 2.0, hangover_ms: int = 250):
         self.sample_rate = sample_rate
         self.frame_duration_ms = frame_duration_ms
         self.threshold_ratio = threshold_ratio
@@ -37,7 +37,7 @@ class VoiceActivityDetector:
             self.calibrated_frames += 1
             return False
 
-        threshold = max(self.noise_floor * self.threshold_ratio, 30.0)
+        threshold = max(self.noise_floor * self.threshold_ratio, 45.0)
 
         if rms > threshold:
             self.hangover_counter = self.hangover_frames

@@ -321,6 +321,9 @@ body {
 
 #waveformCanvas {
     position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     width: 300px;
     height: 300px;
     pointer-events: none;
@@ -837,6 +840,54 @@ body {
     .radio-group { flex-wrap: wrap; }
 }
 
+@media (max-width: 580px) {
+    .app-header {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 12px;
+        height: auto;
+    }
+    .header-actions {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    #agentSelector {
+        flex-grow: 1;
+        text-align-last: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .event-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        padding: 10px 8px;
+    }
+    .event-time {
+        width: auto;
+    }
+    .event-badge {
+        align-self: flex-start;
+    }
+}
+
+@media (max-width: 400px) {
+    .voice-visualizer {
+        width: 180px;
+        height: 180px;
+    }
+    .ring-outer { width: 180px; height: 180px; }
+    .ring-middle { width: 150px; height: 150px; }
+    .ring-inner { width: 120px; height: 120px; }
+    #waveformCanvas { width: 240px; height: 240px; }
+    .mic-button { width: 80px; height: 80px; }
+    .mic-icon, .stop-icon { width: 28px; height: 28px; }
+}
+
 /* ══════════════════════════════════════════════════════════
    PROMPT PANEL — SISTEMA DE PROMPTS
 ══════════════════════════════════════════════════════════ */
@@ -1106,5 +1157,122 @@ body {
     color: var(--text-primary);
     font-size: 0.85rem;
     font-family: var(--font-family);
+}
+
+/* ── RESPONSIVE & LAYOUT ADJUSTMENTS ── */
+html, body {
+    max-width: 100vw;
+    overflow-x: hidden;
+}
+
+.hidden-mobile {
+    display: inline;
+}
+
+@media (min-width: 851px) {
+    .main-content {
+        flex-direction: column;
+        align-items: center;
+        max-width: 700px;
+        margin: 0 auto;
+        width: 100%;
+        padding: 40px 24px;
+        gap: 32px;
+    }
+    .voice-section {
+        width: 100%;
+    }
+    .events-section {
+        width: 100%;
+        height: auto;
+    }
+    .events-log {
+        max-height: 520px;
+    }
+}
+
+@media (max-width: 850px) {
+    .app-header {
+        padding: 12px 16px;
+    }
+    .logo-badge {
+        display: none !important;
+    }
+    .header-actions {
+        gap: 8px;
+    }
+    .main-content {
+        padding: 24px 16px;
+        gap: 24px;
+        width: 100%;
+    }
+    .voice-section {
+        width: 100%;
+    }
+    .events-section {
+        width: 100%;
+        max-width: 100%;
+    }
+    .hidden-mobile {
+        display: none !important;
+    }
+    #agentSelector {
+        padding: 6px 8px !important;
+        font-size: 0.75rem !important;
+        max-width: 130px;
+    }
+    .status-pill {
+        padding: 6px 10px !important;
+        font-size: 0.75rem !important;
+    }
+    .status-text {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .logo-text h1 {
+        font-size: 1.1rem;
+    }
+    .voice-visualizer {
+        width: 180px;
+        height: 180px;
+    }
+    .ring-outer { width: 180px; height: 180px; }
+    .ring-middle { width: 150px; height: 150px; }
+    .ring-inner { width: 120px; height: 120px; }
+    #waveformCanvas {
+        width: 240px !important;
+        height: 240px !important;
+        transform: translate(-50%, -50%) !important;
+    }
+    .mic-button {
+        width: 80px;
+        height: 80px;
+    }
+    .mic-icon, .stop-icon {
+        width: 28px;
+        height: 28px;
+    }
+}
+
+@media (max-width: 400px) {
+    .app-header {
+        padding: 10px 8px;
+    }
+    .header-actions {
+        gap: 6px;
+    }
+    #agentSelector {
+        max-width: 100px;
+        font-size: 0.72rem !important;
+        padding: 4px 6px !important;
+    }
+    .status-pill {
+        padding: 4px 6px !important;
+    }
+    .btn-admin {
+        padding: 6px 8px !important;
+    }
 }
 

@@ -42,12 +42,13 @@ async def _get_worker_for_session(session=None) -> InventoryWorker | None:
             if not odoo_url or not odoo_api_key:
                 logger.warning(f"[user_id={user_id}] Odoo configurado pero faltan credenciales, usando interno")
                 return _worker
-            from ai.odoo_worker import OdooInventoryWorker
-            return OdooInventoryWorker(
+            from ai.odoo_worker import get_odoo_worker
+            return get_odoo_worker(
                 base_url=odoo_url,
                 api_key=odoo_api_key,
                 db_name=config.get("odoo_db", ""),
                 odoo_user=config.get("odoo_user", ""),
+                user_id=user_id
             )
 
         if source_type in ("postgres_local", "postgres_railway"):

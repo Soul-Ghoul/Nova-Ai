@@ -29,8 +29,6 @@ if railway_public:
 
 
 INSTALLED_APPS = [
-    'daphne',
-    'channels',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.staticfiles',
