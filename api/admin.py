@@ -353,6 +353,7 @@ async def prompt_config_handler(request):
                     agent_name = agent_builder.get("identity", {}).get("name", "Nova")
 
             # Guardar en BD
+            existing_config = await _db.load_prompt_config(user_id) or {}
             config_to_save = {
                 "mode": mode,
                 "use_custom": data.get("use_custom", False),
@@ -363,6 +364,10 @@ async def prompt_config_handler(request):
                 "agent_source": data.get("agent_source", "preset"),
                 "agent_builder": data.get("agent_builder", {}),
             }
+            if "pms_agent_type" in existing_config:
+                config_to_save["pms_agent_type"] = existing_config["pms_agent_type"]
+            if "odoo_agent_type" in existing_config:
+                config_to_save["odoo_agent_type"] = existing_config["odoo_agent_type"]
             
             await _db.save_prompt_config(user_id, config_to_save)
             loader.set_prompt_config_cache(user_id, config_to_save)
@@ -398,13 +403,10 @@ async def prompt_config_handler(request):
 async def get_active_prompt_preview(request):
     if request.method == "GET":
         user_id = request.admin_user["id"]
-        from ai.prompt_loader import PromptLoader
-        loader = PromptLoader()
+        loader = _get_prompt_loader()
         
-        # Cargar texto del prompt
         text = await loader.load(user_id=user_id)
         
-        # Cargar config desde BD
         config_data = await _db.load_prompt_config(user_id)
         
         return JsonResponse({

@@ -1,6 +1,6 @@
 import httpx
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from loguru import logger
 
 
@@ -184,13 +184,114 @@ class PmsWorker:
 
     # ── PMS Operations ────────────────────────────────────────────────────────
 
+    def _parse_date(self, date_str: str) -> date | None:
+        if not date_str:
+            return None
+        cleaned = date_str.strip().lower()
+        import re
+        cleaned = re.sub(r'\b(de|del|el)\b', ' ', cleaned)
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        meses = {
+            "enero": 1, "ene": 1,
+            "febrero": 2, "feb": 2,
+            "marzo": 3, "mar": 3,
+            "abril": 4, "abr": 4,
+            "mayo": 5, "may": 5,
+            "junio": 6, "jun": 6,
+            "julio": 7, "jul": 7,
+            "agosto": 8, "ago": 8,
+            "septiembre": 9, "sep": 9, "sept": 9,
+            "octubre": 10, "oct": 10,
+            "noviembre": 11, "nov": 11,
+            "diciembre": 12, "dic": 12
+        }
+        std_cleaned = cleaned.replace("/", "-").replace(" ", "")
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%Y-%m-%d", "%d-%m-%y"):
+            try:
+                return datetime.strptime(std_cleaned, fmt).date()
+            except ValueError:
+                continue
+        parts = re.split(r'[-/\s]+', cleaned)
+        if len(parts) >= 2:
+            try:
+                dia = int(parts[0])
+                mes_str = parts[1]
+                if mes_str in meses:
+                    mes = meses[mes_str]
+                else:
+                    mes = int(mes_str)
+                if len(parts) >= 3:
+                    anio = int(parts[2])
+                    if anio < 100:
+                        anio += 2000
+                else:
+                    anio = datetime.now().year
+                if 1 <= dia <= 31 and 1 <= mes <= 12:
+                    return date(anio, mes, dia)
+            except Exception:
+                pass
+        if len(parts) >= 3:
+            try:
+                anio = int(parts[0])
+                if anio > 1000:
+                    mes_str = parts[1]
+                    dia = int(parts[2])
+                    if mes_str in meses:
+                        mes = meses[mes_str]
+                    else:
+                        mes = int(mes_str)
+                    if 1 <= dia <= 31 and 1 <= mes <= 12:
+                        return date(anio, mes, dia)
+            except Exception:
+                pass
+        for mes_nombre, mes_num in meses.items():
+            if mes_nombre in cleaned:
+                nums = re.findall(r'\b\d{1,4}\b', cleaned)
+                if nums:
+                    try:
+                        dia = int(nums[0])
+                        anio = datetime.now().year
+                        if len(nums) > 1:
+                            posible_anio = int(nums[1])
+                            if posible_anio > 31:
+                                anio = posible_anio
+                                if anio < 100:
+                                    anio += 2000
+                        if 1 <= dia <= 31:
+                            return date(anio, mes_num, dia)
+                    except Exception:
+                        pass
+        return None
+
     async def get_available_rooms(self, room_type: str | None = None) -> str:
         data = await self._get("/api/rooms")
         if data is None:
             return "No se pudo conectar al sistema hotelero. Por favor intenta más tarde."
 
         rooms = data if isinstance(data, list) else data.get("rooms", [])
-        available = [r for r in rooms if r.get("status", "").lower() in ("disponible", "available", "libre")]
+        hoy = datetime.now().date()
+
+        available = []
+        for r in rooms:
+            status = r.get("status", "").lower()
+            if status in ("disponible", "available", "libre", ""):
+                available.append(r)
+            elif status in ("reservada", "reservado", "reserved", "ocupada", "ocupado", "occupied"):
+                check_in_str = r.get("checkin") or r.get("check_in")
+                check_out_str = r.get("checkout") or r.get("check_out")
+                if check_in_str and check_out_str:
+                    try:
+                        ci = self._parse_date(check_in_str)
+                        co = self._parse_date(check_out_str)
+                        if ci and co:
+                            if hoy < ci or hoy > co:
+                                available.append(r)
+                        else:
+                            pass
+                    except Exception:
+                        pass
+                else:
+                    pass
 
         if room_type:
             t = room_type.lower()
@@ -208,7 +309,13 @@ class PmsWorker:
             rtype = r.get("type", "?")
             floor = r.get("floor", "?")
             price = r.get("price", 0)
-            lines.append(f"  Hab. {num} — {rtype} (Piso {floor}) — ${price:,.2f}/noche")
+            
+            status = r.get("status", "").lower()
+            res_info = ""
+            if status in ("reservada", "reservado", "reserved", "ocupada", "ocupado", "occupied"):
+                res_info = f" (Reservada del {r.get('checkin') or r.get('check_in')} al {r.get('checkout') or r.get('check_out')})"
+                
+            lines.append(f"  Hab. {num} — {rtype} (Piso {floor}) — ${int(price)} pesos por noche{res_info}")
 
         if len(available) > 10:
             lines.append(f"  ... y {len(available) - 10} más disponibles.")
@@ -221,27 +328,81 @@ class PmsWorker:
             return "No se pudo consultar el estado de la habitación."
 
         rooms = data if isinstance(data, list) else data.get("rooms", [])
+        hoy = datetime.now().date()
         for r in rooms:
             if str(r.get("number", "")).strip() == str(room_number).strip():
                 status = r.get("status", "desconocido")
-                guest = r.get("guest", r.get("currentGuest", ""))
                 rtype = r.get("type", "")
                 price = r.get("price", 0)
                 pbx = r.get("pbx_status", "Idle")
+                
+                check_in_str = r.get("checkin") or r.get("check_in")
+                check_out_str = r.get("checkout") or r.get("check_out")
+                
+                is_free_today = True
+                if status.lower() in ("reservada", "reservado", "reserved", "ocupada", "ocupado", "occupied") and check_in_str and check_out_str:
+                    ci = self._parse_date(check_in_str)
+                    co = self._parse_date(check_out_str)
+                    if ci and co and ci <= hoy <= co:
+                        is_free_today = False
+
+                # Parsear minibar e inventario
+                minibar_items = []
+                inventory_items = []
+                import json
+                
+                try:
+                    mb = r.get("minibar") or []
+                    if isinstance(mb, str):
+                        mb = json.loads(mb)
+                    for item in mb:
+                        if isinstance(item, dict) and item.get("current", 0) > 0:
+                            minibar_items.append(f"{item.get('name')} ({item.get('current')} disp.)")
+                except Exception:
+                    pass
+
+                try:
+                    inv = r.get("inventory") or []
+                    if isinstance(inv, str):
+                        inv = json.loads(inv)
+                    for item in inv:
+                        if isinstance(item, dict) and item.get("status") == "ok":
+                            inventory_items.append(item.get("name"))
+                except Exception:
+                    pass
+
                 lines = [f"Habitación {room_number} ({rtype}):"]
-                lines.append(f"  Estado: {status}")
-                if guest:
-                    lines.append(f"  Huésped: {guest}")
-                lines.append(f"  Precio: ${price:,.2f}/noche")
+                if status.lower() in ("reservada", "reservado", "reserved", "ocupada", "ocupado", "occupied"):
+                    if is_free_today:
+                        lines.append(f"  Estado: Libre hoy (Reservada a futuro para las fechas del {check_in_str} al {check_out_str})")
+                        lines.append("  Sugerencia para el asistente: Menciona que está libre hoy pero ya tiene reserva a futuro. Pregunta si quiere reservar en otra fecha.")
+                    else:
+                        lines.append(f"  Estado: Reservada (para las fechas del {check_in_str} al {check_out_str})")
+                        lines.append("  Sugerencia para el asistente: Explica amablemente que ya está reservada en esas fechas y pregúntale si quiere reservar en otra fecha o si prefiere ver la disponibilidad de hoy.")
+                else:
+                    lines.append(f"  Estado: {status}")
+                
+                lines.append(f"  Precio: ${int(price)} pesos por noche")
                 lines.append(f"  Estado telefónico: {pbx}")
+                
+                if minibar_items:
+                    lines.append(f"  Consumibles en minibar: {', '.join(minibar_items)}")
+                else:
+                    lines.append("  Consumibles en minibar: Ninguno disponible en este momento")
+                    
+                if inventory_items:
+                    lines.append(f"  Artículos e inventario: {', '.join(inventory_items)}")
+                else:
+                    lines.append("  Artículos e inventario: Ninguno registrado")
+                    
                 return "\n".join(lines)
 
-        return f"No encontré la habitación {room_number} en el sistema."
+        return f"No encontré la habitación {room_number} in el sistema."
 
     async def get_reservations(self, guest_name: str | None = None) -> str:
         """
         El PMS no tiene endpoint de reservas separado.
-        Usamos /api/rooms para listar habitaciones ocupadas (status = Ocupada)
+        Usamos /api/rooms para listar habitaciones ocupadas o reservadas
         filtrando por el nombre del huésped si se provee.
         """
         data = await self._get("/api/rooms")
@@ -249,7 +410,7 @@ class PmsWorker:
             return "No se pudo consultar las habitaciones en este momento."
 
         rooms = data if isinstance(data, list) else data.get("rooms", [])
-        occupied = [r for r in rooms if r.get("status", "").lower() in ("ocupada", "ocupado", "occupied")]
+        occupied = [r for r in rooms if r.get("status", "").lower() in ("ocupada", "ocupado", "occupied", "reservada", "reservado", "reserved")]
 
         if guest_name:
             g = guest_name.lower()
@@ -259,18 +420,30 @@ class PmsWorker:
             ]
 
         if not occupied:
-            msg = "No se encontraron habitaciones ocupadas"
+            msg = "No se encontraron habitaciones reservadas u ocupadas"
             if guest_name:
                 msg += f" para '{guest_name}'"
             return msg + "."
 
-        lines = ["=== HABITACIONES OCUPADAS ==="]
+        lines = ["=== RESERVAS ACTIVAS ==="]
         for r in occupied[:10]:
             num = r.get("number", "?")
             rtype = r.get("type", "?")
-            guest = r.get("guest", r.get("currentGuest", "Sin registro"))
             price = r.get("price", 0)
-            lines.append(f"  Hab. {num} ({rtype}) | Huésped: {guest} | ${price:,.2f}/noche")
+            status = r.get("status", "Reservada")
+            date_info = ""
+            ci = r.get("checkin") or r.get("check_in")
+            co = r.get("checkout") or r.get("check_out")
+            if ci and co:
+                date_info = f" | {ci} al {co}"
+            
+            # Solo mostrar nombre si se buscó específicamente por él
+            if guest_name:
+                guest_info = f" | Huésped: {r.get('guest', r.get('currentGuest', 'Sin registro'))}"
+            else:
+                guest_info = ""
+                
+            lines.append(f"  Hab. {num} ({rtype}) | {status}{guest_info}{date_info} | ${int(price)} pesos por noche")
 
         return "\n".join(lines)
 
@@ -279,7 +452,7 @@ class PmsWorker:
                                   adults: int = 1) -> str:
         """
         El PMS gestiona ocupación actualizando el status de la habitación.
-        Usamos PUT /api/rooms/{room_id} para marcarla como Ocupada con el huésped.
+        Usamos PUT /api/rooms/{room_id} para marcarla como Reservada con el huésped.
         """
         rooms_data = await self._get("/api/rooms")
         if rooms_data is None:
@@ -290,16 +463,49 @@ class PmsWorker:
         if not room:
             return f"No encontré la habitación {room_number} en el sistema."
 
-        if room.get("status", "").lower() not in ("disponible", "available", "libre"):
+        status_lower = room.get("status", "").lower()
+        is_available = status_lower in ("disponible", "available", "libre", "")
+        if status_lower in ("reservada", "reservado", "reserved", "ocupada", "ocupado", "occupied"):
+            ci_exist = room.get("checkin") or room.get("check_in")
+            co_exist = room.get("checkout") or room.get("check_out")
+            if ci_exist and co_exist:
+                try:
+                    ci_e = self._parse_date(ci_exist)
+                    co_e = self._parse_date(co_exist)
+                    ci_n = self._parse_date(check_in)
+                    co_n = self._parse_date(check_out)
+                    if ci_e and co_e and ci_n and co_n:
+                        # Si la nueva reserva termina antes de la existente o empieza después, no se solapan
+                        if co_n < ci_e or ci_n > co_e:
+                            is_available = True
+                except Exception:
+                    pass
+
+        if not is_available:
             return f"La habitación {room_number} no está disponible (Estado: {room.get('status', 'desconocido')})."
 
         room_id = room.get("id")
+        
+        # Estructurar huéspedes adicionales
+        additional_guests = []
+        if adults > 1:
+            for _ in range(adults - 1):
+                additional_guests.append({
+                    "name": "Adulto adicional",
+                    "isMinor": False
+                })
+
         update_body = {
             **room,
-            "status": "Ocupada",
+            "status": "Reservada",
             "guest": guest_name,
             "currentGuest": guest_name,
+            "checkin": check_in,
+            "checkout": check_out,
+            "additionalGuests": additional_guests,
         }
+        update_body.pop("check_in", None)
+        update_body.pop("check_out", None)
         update_body.pop("id", None)
 
         result = await self._put(f"/api/rooms/{room_id}", update_body)
@@ -307,9 +513,9 @@ class PmsWorker:
         if result is None:
             return f"No se pudo registrar a {guest_name} en la habitación {room_number}."
 
-        logger.info(f"PmsWorker: Habitación {room_number} asignada a '{guest_name}'")
+        logger.info(f"PmsWorker: Habitación {room_number} reservada a '{guest_name}'")
         return (
-            f"¡Habitación {room_number} asignada a {guest_name}! "
+            f"¡Habitación {room_number} reservada a {guest_name}! "
             f"Check-in: {check_in} | Check-out: {check_out}. "
             f"El registro quedó guardado en el sistema hotelero."
         )

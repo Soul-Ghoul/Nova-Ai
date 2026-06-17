@@ -38,27 +38,37 @@ class GeminiLiveClient:
                 system_prompt = "Eres un asistente de voz profesional. Responde en español."
 
         tools_config = "default_tools"
-        config = None
-        if user_id is not None:
-            config = self._prompt_loader.get_prompt_config_cache(user_id)
-        
-        if config is None:
-            config_path = self._prompt_loader._get_config_path(user_id)
-            if os.path.exists(config_path):
-                try:
-                    with open(config_path, "r", encoding="utf-8") as f:
-                        config = json.load(f)
-                except Exception as e:
-                    logger.error(f"Error cargando tools_config de odoo en _build_config: {e}")
+        if prompt_name != "nova_default":
+            p_lower = prompt_name.lower()
+            if p_lower.startswith("pms_") or "pms" in p_lower:
+                tools_config = "pms_hotel_tools"
+            elif p_lower.startswith("odoo_") or "odoo" in p_lower:
+                if p_lower == "odoo_vendor_support":
+                    tools_config = "odoo_vendor_tools"
+                else:
+                    tools_config = "odoo_sales_tools"
+        else:
+            config = None
+            if user_id is not None:
+                config = self._prompt_loader.get_prompt_config_cache(user_id)
+            
+            if config is None:
+                config_path = self._prompt_loader._get_config_path(user_id)
+                if os.path.exists(config_path):
+                    try:
+                        with open(config_path, "r", encoding="utf-8") as f:
+                            config = json.load(f)
+                    except Exception as e:
+                        logger.error(f"Error cargando tools_config de odoo en _build_config: {e}")
 
-        if isinstance(config, dict) and config.get("odoo_agent_type"):
-            agent_type = config.get("odoo_agent_type")
-            if agent_type == "odoo_vendor_support":
-                tools_config = "odoo_vendor_tools"
-            else:
-                tools_config = "odoo_sales_tools"
-        elif isinstance(config, dict) and config.get("pms_agent_type"):
-            tools_config = "pms_hotel_tools"
+            if isinstance(config, dict) and config.get("odoo_agent_type"):
+                agent_type = config.get("odoo_agent_type")
+                if agent_type == "odoo_vendor_support":
+                    tools_config = "odoo_vendor_tools"
+                else:
+                    tools_config = "odoo_sales_tools"
+            elif isinstance(config, dict) and config.get("pms_agent_type"):
+                tools_config = "pms_hotel_tools"
 
         tools      = self._registry.load_schemas(tools_config)
         voice_name = self._prompt_loader.get_voice(user_id=user_id)

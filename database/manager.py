@@ -907,10 +907,21 @@ class DatabaseManager:
             agent_builder = {}
             
         profile_name = "Preconfigurado"
+        pms_agent_type = None
+        odoo_agent_type = None
         try:
-            agent_row = await self.fetch_one("SELECT name FROM admin_agents WHERE user_id = ? AND agent_id = ?", (user_id, "active_agent"))
-            if agent_row and agent_row.get("name"):
-                profile_name = agent_row["name"]
+            agent_row = await self.fetch_one("SELECT name, builder_config FROM admin_agents WHERE user_id = ? AND agent_id = ?", (user_id, "active_agent"))
+            if agent_row:
+                if agent_row.get("name"):
+                    profile_name = agent_row["name"]
+                b_cfg_str = agent_row.get("builder_config")
+                if b_cfg_str:
+                    try:
+                        b_cfg = json.loads(b_cfg_str)
+                        pms_agent_type = b_cfg.get("pms_agent_type")
+                        odoo_agent_type = b_cfg.get("odoo_agent_type")
+                    except Exception:
+                        pass
         except Exception:
             pass
         
@@ -924,6 +935,8 @@ class DatabaseManager:
             "agent_source": row.get("agent_source", "preset"),
             "agent_builder": agent_builder,
             "profile_name": profile_name,
+            "pms_agent_type": pms_agent_type,
+            "odoo_agent_type": odoo_agent_type,
         }
 
     async def delete_prompt_config(self, user_id: int):

@@ -64,13 +64,13 @@ async def _restore_prompt_configs():
         os.makedirs(prompts_dir, exist_ok=True)
         os.makedirs("data", exist_ok=True)
         
-        restored_users = set()
+        configs_by_user = {}
         
         # 1. Cargar y restaurar desde prompt_config
         try:
             sql_configs = "SELECT user_id, mode, use_custom, voice, builder, raw_content, agent_id, agent_source, agent_builder FROM prompt_config"
             configs_rows = await db.fetch_all(sql_configs)
-            logger.info(f"Restaurando {len(configs_rows)} registros de prompt_config...")
+            logger.info(f"Cargando {len(configs_rows)} registros de prompt_config para restauración...")
             for r in configs_rows:
                 u_id = r["user_id"]
                 try:
@@ -82,7 +82,7 @@ async def _restore_prompt_configs():
                     builder = {}
                     agent_builder = {}
                 
-                config_data = {
+                configs_by_user[u_id] = {
                     "mode": r["mode"],
                     "use_custom": bool(r["use_custom"]),
                     "voice": r["voice"] or "Nova",
@@ -92,12 +92,6 @@ async def _restore_prompt_configs():
                     "agent_source": r["agent_source"] or "preset",
                     "agent_builder": agent_builder,
                 }
-                
-                config_path = prompt_loader._get_config_path(u_id)
-                with open(config_path, "w", encoding="utf-8") as f:
-                    json.dump(config_data, f, ensure_ascii=False, indent=2)
-                prompt_loader.set_prompt_config_cache(u_id, config_data)
-                restored_users.add(u_id)
         except Exception as err:
             logger.error(f"Error restaurando desde tabla prompt_config: {err}")
 
@@ -105,6 +99,7 @@ async def _restore_prompt_configs():
         try:
             sql = "SELECT user_id, name, system_prompt, builder_config FROM admin_agents WHERE agent_id = ?"
             rows = await db.fetch_all(sql, ("active_agent",))
+            logger.info(f"Cargados {len(rows)} agentes activos desde admin_agents para restauración...")
             
             for r in rows:
                 u_id = r["user_id"]
@@ -112,24 +107,27 @@ async def _restore_prompt_configs():
                 builder_config_str = r.get("builder_config") or "{}"
                 
                 try:
-                    config_data = json.loads(builder_config_str)
+                    agent_config = json.loads(builder_config_str)
                 except Exception:
-                    config_data = {}
+                    agent_config = {}
                 
-                if u_id not in restored_users and config_data:
-                    logger.warning(f"Usuario {u_id} tenía agente activo pero no registro en prompt_config. Reparando...")
-                    await db.save_prompt_config(u_id, config_data)
-                    
-                    config_path = prompt_loader._get_config_path(u_id)
-                    with open(config_path, "w", encoding="utf-8") as f:
-                        json.dump(config_data, f, ensure_ascii=False, indent=2)
-                    prompt_loader.set_prompt_config_cache(u_id, config_data)
-                    restored_users.add(u_id)
-                
-                if not config_data:
+                if not agent_config:
                     continue
                 
-                mode = config_data.get("mode", "none")
+                # Si el usuario no estaba en configs_by_user, inicializarlo
+                if u_id not in configs_by_user:
+                    configs_by_user[u_id] = agent_config
+                else:
+                    for key, val in agent_config.items():
+                        if key not in configs_by_user[u_id] or (key in ("pms_agent_type", "odoo_agent_type", "agent_id", "agent_source", "mode") and val):
+                            configs_by_user[u_id][key] = val
+                
+                agent_name = r.get("name") or ""
+                if agent_name:
+                    configs_by_user[u_id]["profile_name"] = agent_name
+                
+                # Escribir los archivos físicos correspondientes al agente activo
+                mode = agent_config.get("mode", "none")
                 if mode == "builder":
                     filepath = os.path.join(prompts_dir, f"nova_builder_{u_id}.md")
                     with open(filepath, "w", encoding="utf-8") as f:
@@ -139,40 +137,36 @@ async def _restore_prompt_configs():
                     with open(filepath, "w", encoding="utf-8") as f:
                         f.write(system_prompt)
                 elif mode == "agent":
-                    agent_id = config_data.get("agent_id")
-                    agent_source = config_data.get("agent_source", "preset")
-                    agent_builder = config_data.get("agent_builder") or config_data.get("builder", {})
+                    agent_id = agent_config.get("agent_id")
+                    agent_source = agent_config.get("agent_source", "preset")
                     
                     if agent_source == "custom" and agent_id:
                         filepath = os.path.join(prompts_dir, f"nova_custom_{agent_id}.md")
                         with open(filepath, "w", encoding="utf-8") as f:
                             f.write(system_prompt)
-                    else:
-                        filepath_md = os.path.join(prompts_dir, f"nova_agent_{u_id}.md")
-                        with open(filepath_md, "w", encoding="utf-8") as f:
-                            f.write(system_prompt)
-                        
-                        if agent_id:
-                            import yaml
-                            filepath_yaml = os.path.join(prompts_dir, f"nova_{agent_id}_{u_id}.yaml")
-                            preset_data = {
-                                "name": agent_builder.get("identity", {}).get("name", "Nova"),
-                                "company": agent_builder.get("identity", {}).get("company", "la empresa"),
-                                "role": agent_builder.get("identity", {}).get("role", "asistente"),
-                                "greeting": agent_builder.get("greeting", ""),
-                                "language": agent_builder.get("language", "es"),
-                                "tone": agent_builder.get("tone", "friendly"),
-                                "personality": agent_builder.get("personality", []),
-                                "capabilities": agent_builder.get("capabilities", []),
-                                "rules": agent_builder.get("rules", []),
-                                "custom_instructions": agent_builder.get("custom_instructions", ""),
-                                "system_prompt": system_prompt
-                            }
-                            with open(filepath_yaml, "w", encoding="utf-8") as f:
-                                yaml.safe_dump(preset_data, f, allow_unicode=True, default_flow_style=False)
         except Exception as err:
-            logger.error(f"Error restaurando desde tabla admin_agents: {err}")
-            
+            logger.error(f"Error procesando agentes activos de admin_agents: {err}")
+
+        # 3. Guardar todas las configs enriquecidas localmente y cachearlas
+        for u_id, config_data in configs_by_user.items():
+            try:
+                # Reparar en la BD si no existe registro en prompt_config
+                try:
+                    sql_check = "SELECT 1 FROM prompt_config WHERE user_id = ?"
+                    has_pc = await db.fetch_one(sql_check, (u_id,))
+                    if not has_pc:
+                        logger.warning(f"Usuario {u_id} tenía agente activo pero no registro en prompt_config. Reparando en BD...")
+                        await db.save_prompt_config(u_id, config_data)
+                except Exception as dberr:
+                    logger.error(f"Error reparando prompt_config en BD: {dberr}")
+
+                config_path = prompt_loader._get_config_path(u_id)
+                with open(config_path, "w", encoding="utf-8") as f:
+                    json.dump(config_data, f, ensure_ascii=False, indent=2)
+                prompt_loader.set_prompt_config_cache(u_id, config_data)
+            except Exception as w_err:
+                logger.error(f"Error guardando JSON local para user_id {u_id}: {w_err}")
+                
         logger.info("Restauración de agentes activos completada exitosamente.")
     except Exception as e:
         logger.error(f"Error general en restauración de agentes activos: {e}")

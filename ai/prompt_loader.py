@@ -136,6 +136,15 @@ VENDOR_SUPPORT_BLOCK = """INSTRUCCIONES DE SOPORTE A VENDEDORES:
 - NO inventes contactos ni emails. Solo usa datos reales de Odoo.
 """
 
+PMS_BLOCK = """INSTRUCCIONES DE PRECIOS, PRIVACIDAD Y OPERACIÓN HOTELERA:
+- REGLA ABSOLUTA DE PRECIOS: Las tarifas de las habitaciones están estrictamente en el rango de los miles de pesos (por ejemplo, $1500 pesos o $3500 pesos). NUNCA bajo ninguna circunstancia uses la palabra "millones" o derivados para referirte a tarifas o montos. Si ves un número como $1500 o $3500, léelo simplemente como "mil quinientos pesos" o "tres mil quinientos pesos".
+- REGLA DE LÍMITE DE RESERVAS: El cliente puede reservar múltiples habitaciones de forma virtual si lo solicita (por ejemplo, 2, 3, 4 o hasta 5 habitaciones). Sin embargo, si el usuario solicita reservar más de 5 habitaciones, o si pretende reservar todas las habitaciones disponibles o el hotel completo de forma exagerada, no debes realizar la reserva. En su lugar, explícale amablemente que por políticas del hotel, para reservas de más de 5 habitaciones o reservas grupales masivas, es mejor que asista o se comunique directamente con el personal de la recepción del hotel.
+- REGLA ABSOLUTA DE PRIVACIDAD: Está TERMINANTEMENTE PROHIBIDO revelar, mencionar o leer nombres de otros huéspedes al dar información sobre el estado de habitaciones reservadas u ocupadas. Si una habitación está ocupada o reservada por otra persona, limítate a decir que la habitación está reservada para las fechas indicadas, sin dar nombres bajo ningún motivo. Solo podrás decir nombres si el usuario explícitamente pregunta por su propia reservación aportando su nombre.
+- FLUJO DE HABITACIÓN RESERVADA: Si un usuario consulta por una habitación que ya está reservada, debes indicarle de forma amable: "La habitación número [número] ya está reservada para las fechas del [checkin] al [checkout]", y preguntarle de inmediato si le gustaría reservar en otra fecha, ver si hoy está disponible, o si prefiere buscar otra habitación.
+- NO hagas conversiones a USD ni menciones otras divisas. Solo pesos mexicanos (MXN).
+- NO inventes habitaciones, tarifas ni servicios que no estén en la respuesta del PMS.
+"""
+
 class PromptLoader:
     def __init__(self):
         self.prompts_dir = get_settings().prompts_dir
@@ -241,14 +250,22 @@ class PromptLoader:
                 "greeting": "¡Hola! Bienvenido al hotel. Soy Nova, tu recepcionista virtual. ¿En qué puedo ayudarte hoy?",
                 "language": "es",
                 "tone": "friendly",
-                "personality": ["warm", "concise", "proactive", "empathetic", "confirm"],
+                "personality": ["warm", "concise", "proactive", "empathetic", "confirm", "respectfull"],
                 "capabilities": ["pms_rooms_status", "pms_check_rooms", "pms_get_reservations", "pms_create_reservation", "general"],
                 "rules": ["character_lock", "no_hallucinations"],
                 "custom_instructions": (
                     "INSTRUCCIONES OBLIGATORIAS DE OPERACIÓN:\n"
-                    "- Al consultar disponibilidad, debes mencionar a fuerzas la Habitación 104, indicando que es Suite, detallando su costo correspondiente y que está Disponible.\n"
-                    "- Si el usuario te pregunta qué incluye la habitación, infórmale que incluye: Wi-Fi premium de alta velocidad, minibar con bebidas y snacks (consumibles de cortesía), cafetera express con cápsulas de cortesía, room service 24 horas y amenities premium.\n"
-                    "- Si el usuario desea realizar la reserva de la habitación, debes preguntarle: su Nombre completo, su Fecha de ingreso y su Fecha de egreso. Al confirmarle el registro, dile de forma explícita que la reserva quedó registrada pero que debe presentarse en recepción para validar la reserva."
+                    "- REGLA DE FORMATO DE PRECIOS: Las tarifas de las habitaciones están estrictamente en el rango de los miles de pesos (por ejemplo, $1500 o $3500). Está TERMINANTEMENTE PROHIBIDO confundir miles con millones. NUNCA uses la palabra 'millones' o derivados para referirte a tarifas de habitaciones.\n"
+                    "- REGLA DE LÍMITE DE RESERVAS: El cliente puede reservar múltiples habitaciones de forma virtual si lo solicita (por ejemplo, 2, 3, 4 o hasta 5 habitaciones). Sin embargo, si el usuario solicita reservar más de 5 habitaciones, o si pretende reservar todas las habitaciones disponibles o el hotel completo de forma exagerada, no debes realizar la reserva. En su lugar, explícales amablemente que por políticas del hotel, para reservar más de 5 habitaciones o realizar reservas masivas, es mejor que asistan o se comuniquen directamente con el personal de la recepción del hotel.\n"
+                    "- REGLA DE PRIVACIDAD: Está TERMINANTEMENTE PROHIBIDO revelar, leer o mencionar nombres de otros huéspedes al dar información sobre habitaciones ocupadas o reservadas. Si una habitación está reservada por otra persona, limítate a decir que está reservada para las fechas indicadas, sin dar ningún nombre.\n"
+                    "- FLUJO DE HABITACIÓN RESERVADA: Si el usuario pregunta por una habitación ya reservada, debes decirle amablemente: 'La habitación número [número] ya está reservada para las fechas del [checkin] al [checkout]', y preguntarle de inmediato si le gustaría reservar en otra fecha o ver si hoy está disponible.\n"
+                    "- Al consultar disponibilidad, debes mencionar a fuerzas el número de habitación, detalla su costo correspondiente y si está Disponible o no disponible.\n"
+                    "- Si el usuario te pregunta qué incluye la habitación o qué consumibles/inventario tiene (ej. televisión, refrescos en minibar, secadora), consulta el estado de la habitación y menciónale detalladamente los artículos del minibar y del inventario devueltos por la herramienta.\n"
+                    "- FLUJO DE RESERVA SECUENCIAL: Si el usuario desea realizar la reserva, debes hacer las preguntas de UNA EN UNA de forma separada y secuencial, esperando obligatoriamente a que el usuario responda a la pregunta anterior antes de formular la siguiente (NUNCA hagas más de una pregunta a la vez):\n"
+                    "  1. Primero pregunta: ¿A nombre de quién registramos la habitación?\n"
+                    "  2. Una vez que el usuario responda, haz la siguiente pregunta por separado: ¿Cuál es la fecha de ingreso?\n"
+                    "  3. Una vez que el usuario responda la fecha de ingreso, haz la última pregunta por separado: ¿Cuál es la fecha de egreso?\n"
+                    "  Al confirmarle el registro, dile de forma explícita que la reserva quedó registrada pero que debe presentarse en recepción para validar la reserva."
                 )
             },
             "pms_concierge": {
@@ -263,9 +280,17 @@ class PromptLoader:
                 "rules": ["character_lock", "no_hallucinations"],
                 "custom_instructions": (
                     "INSTRUCCIONES OBLIGATORIAS DE CONCIERGE:\n"
-                    "- Al consultar disponibilidad, menciona a fuerzas la Habitación 104 como Suite disponible con su costo.\n"
-                    "- Si preguntan qué incluye, detalla los servicios incluidos (Wi-Fi, minibar de cortesía, cafetera express, room service).\n"
-                    "- Si solicitan reservar, pide su Nombre completo, Fecha de ingreso y Fecha de egreso, y adviértele que al llegar deberá presentarse en recepción para validar la reserva."
+                    "- REGLA DE FORMATO DE PRECIOS: Las tarifas hoteleras están en el rango de miles de pesos (por ejemplo, $1500 o $3500). Menciónalas correctamente y no uses la palabra 'millones' o derivados bajo ninguna circunstancia.\n"
+                    "- REGLA DE LÍMITE DE RESERVAS: El cliente puede reservar múltiples habitaciones de forma virtual si lo solicita (por ejemplo, 2, 3, 4 o hasta 5 habitaciones). Sin embargo, si el usuario solicita reservar más de 5 habitaciones, o si pretende reservar todas las habitaciones disponibles o el hotel completo de forma exagerada, no debes realizar la reserva. En su lugar, explícales amablemente que por políticas del hotel, para reservar más de 5 habitaciones o realizar reservas masivas, es mejor que asista o se comunique directamente con el personal de la recepción del hotel.\n"
+                    "- REGLA DE PRIVACIDAD: Está TERMINANTEMENTE PROHIBIDO revelar, leer o mencionar nombres de otros huéspedes al dar información sobre habitaciones ocupadas o reservadas. Si una habitación está reservada por otra persona, limítate a decir que está reservada para las fechas indicadas, sin dar ningún nombre.\n"
+                    "- FLUJO DE HABITACIÓN RESERVADA: Si el usuario pregunta por una habitación ya reservada, debes decirle amablemente: 'La habitación número [número] ya está reservada para las fechas del [checkin] al [checkout]', y preguntarle de inmediato si le gustaría reservar en otra fecha o ver si hoy está disponible.\n"
+                    "- Al consultar disponibilidad, menciona a fuerzas el número de habitación como suite disponible con su costo.\n"
+                    "- Si el usuario te pregunta qué incluye la habitación o qué consumibles/inventario tiene (ej. televisión, refrescos en minibar, secadora), consulta el estado de la habitación y menciónale detalladamente los artículos del minibar y del inventario devueltos por la herramienta.\n"
+                    "- FLUJO DE RESERVA SECUENCIAL: Si desean reservar, haz las preguntas de UNA EN UNA de forma separada y secuencial, esperando obligatoriamente a que el usuario responda a la pregunta anterior antes de formular la siguiente (NUNCA hagas más de una pregunta a la vez):\n"
+                    "  1. Primero pregunta: ¿A nombre de quién registramos la habitación?\n"
+                    "  2. Una vez que el usuario responda, haz la siguiente pregunta por separado: ¿Cuál es la fecha de ingreso?\n"
+                    "  3. Una vez que el usuario responda la fecha de ingreso, haz la última pregunta por separado: ¿Cuál es la fecha de egreso?\n"
+                    "  Al confirmar, dile de forma explícita que quedó registrada pero que deberá presentarse en recepción al llegar para validar la reserva."
                 )
             }
         }
@@ -279,7 +304,11 @@ class PromptLoader:
                 try:
                     with open(preset_file, "r", encoding="utf-8") as f:
                         content = f.read()
-                    if "usd" not in content.lower() or "más el 16% de iva?" not in content.lower():
+                    pms_keys = {"pms_receptionist", "pms_concierge"}
+                    if key in pms_keys:
+                        if "millones" in content.lower() or "privacidad" not in content.lower() or "recepción" not in content.lower() or "límite de reservas" not in content.lower() or "pms_block" not in content.lower() or "una (1) sola" in content.lower() or "límite máximo" in content.lower():
+                            should_recreate = True
+                    elif "usd" not in content.lower() or "más el 16% de iva?" not in content.lower():
                         should_recreate = True
                 except Exception:
                     should_recreate = True
@@ -317,7 +346,7 @@ class PromptLoader:
         """Carga el prompt activo. Prioriza config guardada; luego archivos."""
         config_data = None
 
-        if user_id is not None:
+        if prompt_name == "nova_default" and user_id is not None:
             config_data = self.get_prompt_config_cache(user_id)
             if config_data is None:
                 # 1. Intentar obtener desde Redis de forma asíncrona
@@ -335,28 +364,8 @@ class PromptLoader:
                 # 2. Fallback a la Base de Datos de forma asíncrona
                 if config_data is None and state.db is not None and state.db._db is not None:
                     try:
-                        sql = "SELECT mode, use_custom, voice, builder, raw_content, agent_id, agent_source, agent_builder FROM prompt_config WHERE user_id = ?"
-                        r = await state.db.fetch_one(sql, (user_id,))
-                        if r:
-                            try:
-                                b_val = r["builder"]
-                                builder = json.loads(b_val) if b_val and b_val != "null" else {}
-                                ab_val = r["agent_builder"]
-                                agent_builder = json.loads(ab_val) if ab_val and ab_val != "null" else {}
-                            except Exception:
-                                builder = {}
-                                agent_builder = {}
-
-                            config_data = {
-                                "mode": r["mode"],
-                                "use_custom": bool(r["use_custom"]),
-                                "voice": r["voice"] or "Nova",
-                                "builder": builder,
-                                "raw_content": r["raw_content"] or "",
-                                "agent_id": r["agent_id"] or "",
-                                "agent_source": r["agent_source"] or "preset",
-                                "agent_builder": agent_builder,
-                            }
+                        config_data = await state.db.load_prompt_config(user_id)
+                        if config_data:
                             self.set_prompt_config_cache(user_id, config_data)
                             logger.info(f"Config recuperada de BD compartida para user_id={user_id}")
                             
@@ -407,21 +416,24 @@ class PromptLoader:
             agent_source = config_data.get("agent_source", "preset")
             agent_builder = config_data.get("agent_builder", {}) or config_data.get("builder", {}) or {}
             
-            is_odoo = bool(agent_id and (agent_id.startswith("odoo_") or "odoo_" in agent_id))
-            has_builder_traits = bool(agent_builder and (agent_builder.get("personality") or agent_builder.get("capabilities") or agent_builder.get("identity")))
-            
-            if agent_source == "preset" and agent_id and (is_odoo or not has_builder_traits):
-                preset_prompt = self._load_prompt_file(f"nova_{agent_id}", user_id)
+            if agent_source == "preset" and agent_id:
+                preset_prompt = self._load_prompt_file(f"nova_{agent_id}", None)
                 if preset_prompt:
                     return preset_prompt
             
+            if agent_source == "custom" and agent_id:
+                custom_prompt = self._load_prompt_file(f"nova_custom_{agent_id}", user_id)
+                if custom_prompt:
+                    return custom_prompt
+            
+            has_builder_traits = bool(agent_builder and (agent_builder.get("personality") or agent_builder.get("capabilities") or agent_builder.get("identity")))
             if agent_builder and has_builder_traits:
                 compiled = self._build_from_config(agent_builder)
                 if compiled:
                     return compiled
             
             if agent_id:
-                preset_prompt = self._load_prompt_file(f"nova_{agent_id}", user_id)
+                preset_prompt = self._load_prompt_file(f"nova_{agent_id}", None)
                 if preset_prompt:
                     return preset_prompt
 
@@ -517,8 +529,13 @@ class PromptLoader:
         if custom_instr:
             lines += ["Instrucciones adicionales:", custom_instr, ""]
 
-        if "odoo_mailing" in capabilities or "odoo_contacts" in capabilities:
+        has_pms = any(cap.startswith("pms_") for cap in capabilities)
+        has_vendor = "odoo_mailing" in capabilities or "odoo_contacts" in capabilities
+
+        if has_vendor:
             lines += ["", VENDOR_SUPPORT_BLOCK]
+        elif has_pms:
+            lines += ["", PMS_BLOCK]
         else:
             lines += ["", INVENTORY_SALES_BLOCK]
 
