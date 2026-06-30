@@ -272,8 +272,11 @@ class GeminiLiveClient:
 
             args = dict(fc.args) if fc.args else {}
 
-            if fc.name in ("transfer_call", "end_call", "lookup_inventory", "search_odoo_contacts", "create_odoo_mailing"):
-                args["session"] = session
+            # El worker se decide por la CONEXIÓN (source_type) del usuario de ESTA llamada,
+            # nunca por el prompt elegido. Inyectamos el session a TODOS los handlers para que
+            # cada uno resuelva el user_id real y use el worker que corresponde a su conexión.
+            # Regla: 1 llamada = 1 conexión = 1 worker = 1 Gemini Live.
+            args["session"] = session
 
             result = await self._registry.execute(fc.name, args)
 
