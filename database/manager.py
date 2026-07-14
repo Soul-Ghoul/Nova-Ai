@@ -69,6 +69,30 @@ class DatabaseManager:
             await self._db.close()
             logger.info("Base de datos desconectada")
 
+    # ── HELPERS SQL GENÉRICOS ──────────────────────────────────────────────────
+
+    async def execute(self, sql: str, params: tuple = ()):
+        """Ejecuta una consulta SQL genérica que no retorna filas."""
+        await self._db.execute(sql, params)
+        await self._db.commit()
+
+    async def fetch_one(self, sql: str, params: tuple = ()) -> dict | None:
+        """Retorna una sola fila como diccionario o None."""
+        async with self._db.execute(sql, params) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+    async def fetch_all(self, sql: str, params: tuple = ()) -> list[dict]:
+        """Retorna todas las filas resultantes como una lista de diccionarios."""
+        async with self._db.execute(sql, params) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+    async def get_agent_data_source(self, user_id: int) -> dict | None:
+        """Obtiene la configuración de datos (PMS u Odoo) asignada a un usuario."""
+        sql = "SELECT * FROM agent_data_source WHERE user_id = ?"
+        return await self.fetch_one(sql, (user_id,))
+
     # ── BÚSQUEDA EXTENSIONES ───────────────────────────────────────────────────
 
     async def search_extension(self, query: str) -> list[dict]:

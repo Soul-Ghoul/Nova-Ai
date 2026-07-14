@@ -7,14 +7,56 @@ async def seed_database(db: DatabaseManager):
     try:
         admins_count = await db.fetch_one("SELECT COUNT(*) as count FROM admin_users")
         if not admins_count or admins_count.get("count", 0) == 0:
-            logger.info("No se encontraron usuarios administradores. Sembrando administrador por defecto (admin/nova1234)...")
-            await db.create_admin_user("admin", "nova1234", "admin@nova-ia.app", role="admin")
-            logger.info("Usuario administrador por defecto creado exitosamente.")
+            logger.info("No se encontraron usuarios administradores. Sembrando administradores por defecto...")
+            # Sembrar admin general (id=1)
+            await db.execute(
+                "INSERT INTO admin_users (id, username, password_hash, email, role) VALUES (?, ?, ?, ?, ?)",
+                (1, "admin", "pbkdf2:sha256:600000$xxxx$hash", "admin@nova-ia.app", "admin")
+            )
+            # Sembrar usuario telefónico (id=2)
+            await db.execute(
+                "INSERT INTO admin_users (id, username, password_hash, email, role) VALUES (?, ?, ?, ?, ?)",
+                (2, "telephony_user", "pbkdf2:sha256:600000$yyyy$hash", "telephony@nova-ia.app", "user")
+            )
+            
+            # Sembrar config del agente PMS para el usuario de telefonía (id=2)
+            await db.execute(
+                "INSERT INTO prompt_config (user_id, mode, agent_id, agent_source) VALUES (?, ?, ?, ?)",
+                (2, "agent", "pms_receptionist", "preset")
+            )
+            
+            # Sembrar fuente de datos PMS para el usuario de telefonía (id=2)
+            await db.execute(
+                """INSERT INTO agent_data_source 
+                   (user_id, source_type, pms_url, pms_username, pms_password) 
+                   VALUES (?, ?, ?, ?, ?)""",
+                (2, "pms", "http://127.0.0.1:8000", "admin", "admin")
+            )
+            logger.info("Usuarios y configuraciones de agentes por defecto sembrados con éxito.")
         else:
             # Asegurar que el usuario admin principal tenga el rol 'admin'
             await db.execute("UPDATE admin_users SET role = 'admin' WHERE username = 'admin'")
+            
+            # Asegurar que exista el registro de telefonía en id=2
+            has_telephony = await db.fetch_one("SELECT 1 FROM admin_users WHERE id = 2")
+            if not has_telephony:
+                await db.execute(
+                    "INSERT INTO admin_users (id, username, password_hash, email, role) VALUES (?, ?, ?, ?, ?)",
+                    (2, "telephony_user", "pbkdf2:sha256:600000$yyyy$hash", "telephony@nova-ia.app", "user")
+                )
+                await db.execute(
+                    "INSERT INTO prompt_config (user_id, mode, agent_id, agent_source) VALUES (?, ?, ?, ?)",
+                    (2, "agent", "pms_receptionist", "preset")
+                )
+                await db.execute(
+                    """INSERT INTO agent_data_source 
+                       (user_id, source_type, pms_url, pms_username, pms_password) 
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (2, "pms", "http://127.0.0.1:8000", "admin", "admin")
+                )
+                logger.info("Configuraciones por defecto de telefonía (ID 2) restablecidas.")
     except Exception as e:
-        logger.error(f"Error sembrando usuario administrador: {e}")
+        logger.error(f"Error sembrando configuraciones de base de datos: {e}")
 
     # Sembrar extensiones e inventario si no hay extensiones
     existing = await db.get_all_extensions()
