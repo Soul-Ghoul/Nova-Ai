@@ -389,3 +389,103 @@ class DatabaseManager:
             config.get("agent_id", ""), config.get("agent_source", "preset"),
             agent_builder_str
         ))
+
+    # ── GESTIÓN DE USUARIOS Y SESIONES (LOGIN) ───────────────────────────────
+
+    async def get_user_by_username(self, username: str) -> dict | None:
+        sql = "SELECT * FROM admin_users WHERE username = ?"
+        return await self.fetch_one(sql, (username,))
+
+    async def get_user_by_email(self, email: str) -> dict | None:
+        sql = "SELECT * FROM admin_users WHERE email = ?"
+        return await self.fetch_one(sql, (email,))
+
+    async def create_admin_user(self, username: str, password_plain: str, email: str = "", role: str = "user"):
+        from auth.utils import hash_password
+        password_hash = hash_password(password_plain)
+        sql = "INSERT INTO admin_users (username, password_hash, email, role) VALUES (?, ?, ?, ?)"
+        await self.execute(sql, (username, password_hash, email, role))
+
+    async def create_session_token(self, user_id: int, duration_seconds: int = 24 * 3600) -> str:
+        from auth.utils import generate_session_token
+        from datetime import datetime, timedelta
+        token = generate_session_token()
+        expires_at = datetime.now() + timedelta(seconds=duration_seconds)
+        sql = "INSERT INTO admin_sessions (session_token, user_id, expires_at) VALUES (?, ?, ?)"
+        await self.execute(sql, (token, user_id, expires_at))
+        return token
+
+    async def validate_session_token(self, session_token: str) -> dict | None:
+        from datetime import datetime
+        sql = """
+            SELECT s.expires_at, u.id as user_id, u.username, u.email, u.role
+            FROM admin_sessions s
+            JOIN admin_users u ON s.user_id = u.id
+            WHERE s.session_token = ?
+        """
+        row = await self.fetch_one(sql, (session_token,))
+        if not row:
+            return None
+
+        expires_at_str = row["expires_at"]
+        try:
+            if isinstance(expires_at_str, datetime):
+                expires_at = expires_at_str
+            else:
+                expires_at = datetime.strptime(str(expires_at_str).split('.')[0], '%Y-%m-%d %H:%M:%S')
+        except Exception:
+            try:
+                expires_at = datetime.fromisoformat(str(expires_at_str).replace('Z', ''))
+            except Exception:
+                expires_at = datetime.now()
+
+        if expires_at < datetime.now():
+            await self.delete_session_token(session_token)
+            return None
+
+        return {
+            "id": row["user_id"],
+            "username": row["username"],
+            "email": row["email"],
+            "role": row.get("role", "user")
+        }
+
+    async def delete_session_token(self, session_token: str):
+        sql = "DELETE FROM admin_sessions WHERE session_token = ?"
+        await self.execute(sql, (session_token,))
+
+    # ── AGENTES PERSONALIZADOS ────────────────────────────────────────────────
+
+    async def save_admin_agent(self, user_id: int, agent_id: str, name: str, system_prompt: str, builder_config: dict = None):
+        import json
+        config_json = json.dumps(builder_config or {}, ensure_ascii=False)
+        sql = """
+            INSERT INTO admin_agents (user_id, agent_id, name, system_prompt, builder_config)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, agent_id) DO UPDATE SET
+                name = excluded.name,
+                system_prompt = excluded.system_prompt,
+                builder_config = excluded.builder_config
+        """
+        await self.execute(sql, (user_id, agent_id, name, system_prompt, config_json))
+
+    async def get_all_admin_agents(self, user_id: int) -> list[dict]:
+        import json
+        sql = "SELECT agent_id, name, system_prompt, builder_config FROM admin_agents WHERE user_id = ? ORDER BY agent_id"
+        rows = await self.fetch_all(sql, (user_id,))
+        result = []
+        for r in rows:
+            try:
+                builder = json.loads(r.get("builder_config") or "{}")
+            except Exception:
+                builder = {}
+            result.append({
+                "id": r["agent_id"],
+                "agent_id": r["agent_id"],
+                "name": r["name"],
+                "system_prompt": r["system_prompt"],
+                "profile_name": builder.get("profile_name", r["name"]),
+                "builder": builder.get("builder", {}),
+                "traits": builder.get("traits", []),
+            })
+        return result
