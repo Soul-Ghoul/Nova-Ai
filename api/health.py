@@ -1,4 +1,8 @@
-from django.http import JsonResponse
+from fastapi import APIRouter
 
-async def health_check(request):
-    return JsonResponse({"status": "ok", "service": "Nova Voice Agent"})
+router = APIRouter(prefix="/health", tags=["Health"])
+
+
+@router.get("/")
+async def health_check():
+    return {"status": "ok", "service": "Nova Voice Agent"}
