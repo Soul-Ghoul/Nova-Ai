@@ -66,6 +66,12 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
 
     await db.connect()
+    
+    # Sincronizar instancias globales con django_project.state para módulos dependientes
+    import django_project.state
+    django_project.state.db = db
+    django_project.state.ami_client = ami_client
+
     await seed_database(db)
 
     # Inicializar sistema de caché
