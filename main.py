@@ -87,6 +87,8 @@ async def lifespan(app: FastAPI):
     set_lookup_inv_worker(worker)
     set_transfer_deps(db, ami_client)
     set_admin_deps(db, session_manager, prompt_loader)
+    from django_project import api_admin as django_api_admin
+    django_api_admin.set_dependencies(db, session_manager, prompt_loader)
 
     function_registry.register("transfer_call", handle_transfer_call)
     function_registry.register("lookup_extension", handle_lookup_extension)

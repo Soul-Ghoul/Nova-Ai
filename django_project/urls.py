@@ -4,7 +4,7 @@ from django.conf.urls.static import static
 from django.views.decorators.csrf import csrf_exempt
 from django_project.views import serve_index, serve_admin
 from api.health import health_check
-from api.admin import (
+from django_project.api_admin import (
     extensions_list_create,
     delete_extension,
     inventory_list_create,
