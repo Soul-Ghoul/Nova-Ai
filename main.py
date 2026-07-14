@@ -130,31 +130,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Cargar e integrar Django ASGI para servir el panel web administrativo y auth
+from django_project.asgi import django_asgi_app
+
 app.include_router(health_router)
 app.include_router(admin_router)
 
-if FRONT_DIST_DIR.exists():
-    app.mount("/assets", StaticFiles(directory=str(FRONT_ASSETS_DIR)), name="assets")
-
-
-@app.get("/")
-async def serve_index():
-    return FileResponse(FRONT_DIST_DIR / "index.html")
-
-
-@app.get("/admin")
-async def serve_admin():
-    return FileResponse(FRONT_DIST_DIR / "index.html")
-
-
-@app.get("/favicon.svg")
-async def serve_favicon():
-    return FileResponse(FRONT_DIST_DIR / "favicon.svg")
-
-
-@app.get("/icons.svg")
-async def serve_icons():
-    return FileResponse(FRONT_DIST_DIR / "icons.svg")
+# Montar la aplicación Django ASGI en la raíz como fallback para el panel web y login
+app.mount("/", django_asgi_app)
 
 
 @app.websocket("/ws/voice")
