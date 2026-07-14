@@ -9,7 +9,7 @@ except ImportError:
     import math
 
 class VoiceActivityDetector:
-    def __init__(self, sample_rate: int = 16000, frame_duration_ms: int = 20, threshold_ratio: float = 2.0, hangover_ms: int = 250):
+    def __init__(self, sample_rate: int = 16000, frame_duration_ms: int = 20, threshold_ratio: float = 2.5, hangover_ms: int = 250):
         self.sample_rate = sample_rate
         self.frame_duration_ms = frame_duration_ms
         self.threshold_ratio = threshold_ratio
@@ -17,6 +17,7 @@ class VoiceActivityDetector:
         # Histéresis
         self.hangover_frames = int(hangover_ms / frame_duration_ms)
         self.hangover_counter = 0
+        self.is_speech_state = False
         
         self.use_webrtc = WEBRTCVAD_AVAILABLE
         if self.use_webrtc:
@@ -43,6 +44,16 @@ class VoiceActivityDetector:
         return math.sqrt(sum_squares / count)
 
     def is_speech(self, pcm_data: bytes) -> bool:
+        result = self._is_speech_internal(pcm_data)
+        if result and not self.is_speech_state:
+            self.is_speech_state = True
+            logger.info("VAD: Voz detectada (Inicio)")
+        elif not result and self.is_speech_state:
+            self.is_speech_state = False
+            logger.info("VAD: Silencio detectado (Fin)")
+        return result
+
+    def _is_speech_internal(self, pcm_data: bytes) -> bool:
         if self.use_webrtc:
             # webrtcvad requiere tramas de audio exactas de 10, 20 o 30 ms.
             # Para 16000Hz y 20ms = 640 bytes (320 muestras de 16 bits).
@@ -90,7 +101,7 @@ class VoiceActivityDetector:
                 self.calibrated_frames += 1
                 return False
 
-            threshold = max(self.noise_floor * self.threshold_ratio, 45.0)
+            threshold = max(self.noise_floor * self.threshold_ratio, 15.0)
 
             if rms > threshold:
                 self.hangover_counter = self.hangover_frames

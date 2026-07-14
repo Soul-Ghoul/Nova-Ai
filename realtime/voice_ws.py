@@ -63,16 +63,15 @@ async def voice_websocket(websocket: WebSocket):
                 if not session.active:
                     continue
                 pcm_16khz = AudioProcessor.browser_to_gemini(message["bytes"])
-                if vad.is_speech(pcm_16khz):
+                vad.is_speech(pcm_16khz)
+                try:
+                    session.audio_queue_in.put_nowait(pcm_16khz)
+                except asyncio.QueueFull:
                     try:
-                        session.audio_queue_in.put_nowait(pcm_16khz)
-                    except asyncio.QueueFull:
-                        try:
-                            session.audio_queue_in.get_nowait()
-                        except asyncio.QueueEmpty:
-                            pass
-                        session.audio_queue_in.put_nowait(pcm_16khz)
-                        logger.warning(f"[{session.session_id}] Cola de audio llena: se descarta frame antiguo.")
+                        session.audio_queue_in.get_nowait()
+                    except asyncio.QueueEmpty:
+                        pass
+                    session.audio_queue_in.put_nowait(pcm_16khz)
 
             elif "text" in message and message["text"] is not None:
                 if not session.active:

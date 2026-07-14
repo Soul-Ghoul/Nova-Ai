@@ -483,7 +483,10 @@ class PromptLoader:
                 import yaml
                 data = yaml.safe_load(content)
                 if isinstance(data, dict) and "system_prompt" in data:
-                    return data["system_prompt"]
+                    val = data["system_prompt"]
+                    if isinstance(val, dict):
+                        return self._build_from_config(val)
+                    return val
             except Exception as e:
                 logger.warning(f"Error analizando estructura YAML del prompt: {e}")
 

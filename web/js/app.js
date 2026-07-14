@@ -116,10 +116,10 @@ class NovaVoiceApp {
         const agent = agentSel ? agentSel.value : 'nova_default';
         let wsHost = window.location.host;
 
-        // En desarrollo local redirigir al microservicio desacoplado en el puerto 8001
+        // En desarrollo local redirigir al microservicio desacoplado en el puerto 8000
         if (wsHost.includes('localhost') || wsHost.includes('127.0.0.1')) {
             const hostWithoutPort = window.location.hostname;
-            wsHost = `${hostWithoutPort}:8001`;
+            wsHost = `${hostWithoutPort}:8000`;
         } else if (window.NOVA_WS_URL) {
             if (window.NOVA_WS_URL.startsWith('ws:') || window.NOVA_WS_URL.startsWith('wss:')) {
                 let wsUrl = `${window.NOVA_WS_URL}?agent=${agent}`;

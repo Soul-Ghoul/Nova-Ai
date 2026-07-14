@@ -5,8 +5,8 @@ from pydantic import Field
 
 class Settings(BaseSettings):
     gemini_api_key: str = Field(default="", description="Google Gemini API Key")
-    gemini_model: str = Field(default="gemini-2.5-flash-native-audio-preview-12-2025", description="Modelo Gemini Live")
-    gemini_worker_model: str = Field(default="gemini-2.5-flash", description="Modelo Gemini para Worker de inventario")
+    gemini_model: str = Field(default="gemini-2.0-flash-live-001", description="Modelo Gemini Live")
+    gemini_worker_model: str = Field(default="gemini-2.0-flash", description="Modelo Gemini para Worker de inventario")
 
     ami_host: str = Field(default="127.0.0.1")
     ami_port: int = Field(default=5038)
@@ -15,25 +15,17 @@ class Settings(BaseSettings):
 
     audiosocket_host: str = Field(default="0.0.0.0")
     audiosocket_port: int = Field(default=9092)
+    telephony_user_id: int = Field(default=1, description="User ID del agente que contesta llamadas telefónicas")
 
     nova_host: str = Field(default="0.0.0.0")
     nova_port: int = Field(default=8000)
-    nova_debug: bool = Field(default=False)
+    nova_debug: bool = Field(default=True)
 
     db_path: str = Field(default="./data/nova.db")
-    database_url: str = Field(default="", description="URL de la base de datos PostgreSQL")
-
-    redis_url: str = Field(default="redis://localhost:6379/0", description="URL de conexión a Redis")
-    run_mode: str = Field(default="hybrid", description="Modo de ejecución: hybrid, django, realtime")
-
+    redis_url: str = Field(default="redis://localhost:6379", description="URL de conexión a Redis para caché L1")
 
     prompts_dir: str = Field(default="./config/prompts")
     tools_dir: str = Field(default="./config/tools")
-    usd_exchange_rate: float = Field(default=17.37, description="Tipo de cambio de pesos a dólares (ej: 17.37 MXN = 1 USD)")
-
-    odoo_base_url: str = Field(default="", description="URL base de Odoo (ej: https://mi-empresa.odoo.com)")
-    odoo_db: str = Field(default="", description="Base de datos de Odoo")
-    odoo_api_key: str = Field(default="", description="API Key de Odoo para JSON-2 API")
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

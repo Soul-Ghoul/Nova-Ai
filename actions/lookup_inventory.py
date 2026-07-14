@@ -1,11 +1,15 @@
+import time
 from loguru import logger
 from core.security import SecurityGuard
 from ai.router import IntelligentRouter
 from ai.inventory_worker import InventoryWorker
-from database.manager import DatabaseManager
+from core.cache import (
+    cache_get, cache_set,
+    semantic_cache_get, semantic_cache_set,
+    record_tool_execution,
+)
 
 _worker: InventoryWorker | None = None
-_db: DatabaseManager | None = None
 
 
 def set_worker(worker: InventoryWorker):
@@ -13,54 +17,9 @@ def set_worker(worker: InventoryWorker):
     _worker = worker
 
 
-def set_db(db: DatabaseManager):
-    global _db
-    _db = db
-
-
-async def _get_worker_for_session(session=None) -> InventoryWorker | None:
-    if not _db:
-        return _worker
-
-    user_id = getattr(session, "user_id", None) if session else None
-    if not user_id:
-        user_id = 1
-
-    try:
-        config = await _db.get_agent_data_source(user_id)
-        if not config:
-            return _worker
-
-        source_type = config.get("source_type", "internal")
-
-        if source_type == "internal":
-            return _worker
-
-        if source_type == "odoo":
-            odoo_url = config.get("odoo_url", "")
-            odoo_api_key = config.get("odoo_api_key", "")
-            if not odoo_url or not odoo_api_key:
-                logger.warning(f"[user_id={user_id}] Odoo configurado pero faltan credenciales, usando interno")
-                return _worker
-            from ai.odoo_worker import get_odoo_worker
-            return get_odoo_worker(
-                base_url=odoo_url,
-                api_key=odoo_api_key,
-                db_name=config.get("odoo_db", ""),
-                odoo_user=config.get("odoo_user", ""),
-                user_id=user_id
-            )
-
-        if source_type in ("postgres_local", "postgres_railway"):
-            return _worker
-
-    except Exception as e:
-        logger.error(f"Error resolviendo data source para user_id={user_id}: {e}")
-
-    return _worker
-
-
 async def handle_lookup_inventory(product_query: str, session=None, **kwargs) -> dict:
+    start_time = time.perf_counter()
+
     if SecurityGuard.is_injection(product_query):
         return {"output": SecurityGuard.get_safe_response()}
 
@@ -68,10 +27,34 @@ async def handle_lookup_inventory(product_query: str, session=None, **kwargs) ->
     if route_res:
         return {"output": route_res["response"]}
 
-    worker = await _get_worker_for_session(session)
-    if not worker:
+    if not _worker:
         return {"output": "Sistema de inventario no disponible."}
 
-    result = await worker.process(product_query, session)
-    logger.info(f"Inventario '{product_query}': Worker retornó {len(result)} chars")
+    # ── L1: Buscar en Redis (consulta exacta) ────────────────────────────
+    cached = await cache_get("inventory", product_query)
+    if cached:
+        elapsed = (time.perf_counter() - start_time) * 1000
+        logger.info(f"[CACHE] Inventario '{product_query}' servido desde Redis en {elapsed:.1f}ms")
+        await record_tool_execution("lookup_inventory", product_query, elapsed, cache_hit=True, cache_level="L1")
+        return {"output": cached}
+
+    # ── L2: Buscar en caché semántica (consulta similar) ─────────────────
+    semantic_result = await semantic_cache_get("inventory", product_query)
+    if semantic_result:
+        elapsed = (time.perf_counter() - start_time) * 1000
+        logger.info(f"[CACHE] Inventario '{product_query}' servido desde caché semántica en {elapsed:.1f}ms")
+        await record_tool_execution("lookup_inventory", product_query, elapsed, cache_hit=True, cache_level="L2")
+        return {"output": semantic_result}
+
+    # ── L3: Source of Truth (base de datos / API externa) ────────────────
+    result = await _worker.process(product_query, session)
+
+    # Guardar en L1 (Redis) y L2 (Semántica) para futuras consultas
+    await cache_set("inventory", product_query, result)
+    await semantic_cache_set("inventory", product_query, result)
+
+    elapsed = (time.perf_counter() - start_time) * 1000
+    logger.info(f"Inventario '{product_query}': Worker retornó {len(result)} chars ({elapsed:.1f}ms)")
+    await record_tool_execution("lookup_inventory", product_query, elapsed)
     return {"output": result}
+

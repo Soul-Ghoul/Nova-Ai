@@ -230,7 +230,7 @@ async def init_resources():
         await ami_client.connect()
         gemini_client = GeminiLiveClient(function_registry, prompt_loader)
 
-        audiosocket_server = AudioSocketServer(session_manager)
+        audiosocket_server = AudioSocketServer(session_manager, gemini_client)
         await audiosocket_server.start()
 
     logger.info("=" * 60)

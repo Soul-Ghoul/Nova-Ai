@@ -18,12 +18,14 @@ MSG_TYPE_ERROR = 0xFF
 
 
 class AudioSocketServer:
-    def __init__(self, session_manager: SessionManager):
+    def __init__(self, session_manager: SessionManager, gemini_client=None):
         self._session_manager = session_manager
+        self._gemini_client = gemini_client
         self._server: asyncio.AbstractServer | None = None
         settings = get_settings()
         self.host = settings.audiosocket_host
         self.port = settings.audiosocket_port
+        self.telephony_user_id = settings.telephony_user_id
 
     async def start(self):
         self._server = await asyncio.start_server(
@@ -41,11 +43,13 @@ class AudioSocketServer:
         peer = writer.get_extra_info("peername")
         logger.info(f"AudioSocket: nueva conexión desde {peer}")
         session: CallSession | None = None
+        gemini_task: asyncio.Task | None = None
 
         try:
             session = await self._session_manager.create_session(
                 source="asterisk",
-                call_id=str(uuid.uuid4())
+                call_id=str(uuid.uuid4()),
+                user_id=self.telephony_user_id
             )
 
             vad = VoiceActivityDetector()
@@ -55,6 +59,18 @@ class AudioSocketServer:
             )
 
             await event_bus.emit("asterisk_call_started", session=session)
+
+            # Arrancar Gemini para esta llamada
+            if self._gemini_client:
+                gemini_task = asyncio.create_task(
+                    self._gemini_client.start_session(session, user_id=self.telephony_user_id)
+                )
+                logger.info(
+                    f"Gemini iniciado para llamada telefónica {session.session_id} "
+                    f"(user_id={self.telephony_user_id})"
+                )
+            else:
+                logger.error("AudioSocket sin gemini_client: la llamada no tendrá IA.")
 
             while session.active:
                 header = await reader.readexactly(3)
@@ -72,21 +88,34 @@ class AudioSocketServer:
                     logger.info(f"AudioSocket UUID recibido: {call_uuid}")
 
                 elif msg_type == MSG_TYPE_AUDIO:
-                    # Si el payload tiene 640 bytes o más, asumimos que viene a 16kHz (slin16) nativo
-                    if len(payload) >= 640:
+                    # Fijar la frecuencia de muestreo de Asterisk al recibir el primer paquete de audio (el códec de llamada no cambia a mitad de llamada)
+                    if "asterisk_rate" not in session.metadata:
+                        if len(payload) >= 640:
+                            session.metadata["asterisk_rate"] = 16000
+                            logger.info(f"[{session.session_id}] Tasa de llamada fijada a 16kHz (slin16) - primer payload de {len(payload)} bytes")
+                        else:
+                            session.metadata["asterisk_rate"] = 8000
+                            logger.info(f"[{session.session_id}] Tasa de llamada fijada a 8kHz (slin8) - primer payload de {len(payload)} bytes")
+
+                    # Procesar el audio según la tasa fijada
+                    rate = session.metadata["asterisk_rate"]
+                    if rate == 16000:
                         pcm_16khz = payload
                     else:
                         pcm_16khz = AudioProcessor.asterisk_to_gemini(payload)
-                    if vad.is_speech(pcm_16khz):
+                    
+                    # Ejecutar VAD para logs de diagnóstico en consola
+                    vad.is_speech(pcm_16khz)
+                    
+                    # Enviar el audio de forma continua para que Gemini escuche la frase completa sin cortes
+                    try:
+                        session.audio_queue_in.put_nowait(pcm_16khz)
+                    except asyncio.QueueFull:
                         try:
-                            session.audio_queue_in.put_nowait(pcm_16khz)
-                        except asyncio.QueueFull:
-                            try:
-                                session.audio_queue_in.get_nowait()
-                            except asyncio.QueueEmpty:
-                                pass
-                            session.audio_queue_in.put_nowait(pcm_16khz)
-                            logger.warning(f"[{session.session_id}] Cola de audio llena en AudioSocket: descartando frame antiguo.")
+                            session.audio_queue_in.get_nowait()
+                        except asyncio.QueueEmpty:
+                            pass
+                        session.audio_queue_in.put_nowait(pcm_16khz)
 
                 elif msg_type == MSG_TYPE_HANGUP:
                     logger.info(f"AudioSocket: colgado recibido para {session.session_id}")
@@ -104,6 +133,12 @@ class AudioSocketServer:
             if session:
                 session.active = False
                 await session.audio_queue_in.put(None)
+                if gemini_task and not gemini_task.done():
+                    gemini_task.cancel()
+                    try:
+                        await gemini_task
+                    except (asyncio.CancelledError, Exception):
+                        pass
                 await self._session_manager.end_session(session.session_id, "asterisk_disconnect")
             writer.close()
             try:
@@ -114,6 +149,9 @@ class AudioSocketServer:
 
     async def _send_audio_to_asterisk(self, session: CallSession, writer: asyncio.StreamWriter):
         try:
+            start_time = None
+            sent_samples = 0
+
             while session.active:
                 try:
                     audio_data = await asyncio.wait_for(
@@ -122,20 +160,58 @@ class AudioSocketServer:
                     if audio_data is None:
                         break
 
-                    pcm_8khz = AudioProcessor.gemini_to_asterisk(audio_data)
+                    session.metadata["ia_speaking"] = True
+                    rate = session.metadata.get("asterisk_rate", 8000)
+                    if rate == 16000:
+                        resampled = AudioProcessor.gemini_to_browser(audio_data)  # 24kHz -> 16kHz
+                        chunk_size = 640  # 20ms a 16kHz
+                        samples_per_chunk = 320
+                    else:
+                        resampled = AudioProcessor.gemini_to_asterisk(audio_data)  # 24kHz -> 8kHz
+                        chunk_size = 320  # 20ms a 8kHz
+                        samples_per_chunk = 160
 
-                    chunk_size = 320  # 20ms de audio a 8kHz 16-bit mono
-                    for i in range(0, len(pcm_8khz), chunk_size):
-                        chunk = pcm_8khz[i:i + chunk_size]
+                    if start_time is None:
+                        start_time = asyncio.get_event_loop().time()
+
+                    for i in range(0, len(resampled), chunk_size):
+                        chunk = resampled[i:i + chunk_size]
                         if len(chunk) == 0:
                             break
                         header = struct.pack(">BH", MSG_TYPE_AUDIO, len(chunk))
                         writer.write(header + chunk)
-                    
-                    # Un solo drain tras enviar todos los chunks de la ráfaga actual
-                    await writer.drain()
+                        await writer.drain()
+                        
+                        sent_samples += samples_per_chunk
+                        
+                        # Compensación de deriva de tiempo real con límite de velocidad de ráfaga
+                        expected_time = sent_samples / rate
+                        actual_time = asyncio.get_event_loop().time() - start_time
+                        sleep_time = expected_time - actual_time
+                        
+                        # Limitar la velocidad máxima de vaciado: no dormir menos de 16ms por bloque de 20ms
+                        if sleep_time < 0.016:
+                            sleep_time = 0.016
+                            # Corregir la referencia de tiempo (deriva) para que los siguientes bloques mantengan el ritmo constante
+                            start_time = asyncio.get_event_loop().time() - expected_time + 0.016
+                            
+                        await asyncio.sleep(sleep_time)
 
                 except asyncio.TimeoutError:
+                    session.metadata["ia_speaking"] = False
+                    start_time = None  # Resetear el cronómetro al haber silencio
+                    sent_samples = 0
+                    
+                    # Enviar silencio para mantener viva la conexión con Asterisk
+                    rate = session.metadata.get("asterisk_rate", 8000)
+                    chunk_size = 640 if rate == 16000 else 320
+                    silence = b'\x00' * chunk_size
+                    header = struct.pack(">BH", MSG_TYPE_AUDIO, len(silence))
+                    try:
+                        writer.write(header + silence)
+                        await writer.drain()
+                    except Exception:
+                        break
                     continue
         except asyncio.CancelledError:
             pass

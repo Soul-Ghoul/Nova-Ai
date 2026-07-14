@@ -68,7 +68,7 @@ class GeminiLiveClient:
             return config["odoo_agent_type"]
         return "odoo_sales"
 
-    async def _build_config(self, prompt_name: str = "nova_default", user_id: int | None = None) -> types.LiveConnectConfig:
+    async def _build_config(self, prompt_name: str = "nova_default", user_id: int | None = None, session: CallSession | None = None) -> types.LiveConnectConfig:
         system_prompt = await self._prompt_loader.load(prompt_name, user_id=user_id)
 
         if not isinstance(system_prompt, str):
@@ -80,6 +80,11 @@ class GeminiLiveClient:
             system_prompt = await self._prompt_loader.load("nova_default")
             if not isinstance(system_prompt, str):
                 system_prompt = "Eres un asistente de voz profesional. Responde en español."
+
+        # Aplicar regla de velocidad pausada solo a llamadas de teléfono para legibilidad.
+        # En la web mantenemos el ritmo rápido y natural.
+        if session and session.source == "asterisk":
+            system_prompt += "\n\nREGLA DE VOZ: Habla a un ritmo natural, claro y fluido. Evita hablar de forma apresurada y haz pausas breves al final de cada frase para garantizar una buena legibilidad por teléfono."
 
         tools_config = await self._resolve_tools_config(prompt_name, user_id)
 
@@ -112,7 +117,7 @@ class GeminiLiveClient:
             logger.error("No se puede iniciar sesión: GEMINI_API_KEY no configurada")
             return
 
-        config = await self._build_config(prompt_name, user_id=user_id)
+        config = await self._build_config(prompt_name, user_id=user_id, session=session)
         max_retries = 3
 
         for attempt in range(max_retries):
@@ -171,8 +176,12 @@ class GeminiLiveClient:
                     if audio_chunk is None:
                         break
 
-                    if session.metadata.get("tool_running", False):
-                        # Descartar el audio o ignorarlo mientras procesamos tools
+                    if (
+                        session.metadata.get("tool_running", False)
+                        or session.metadata.get("ia_speaking", False)
+                        or session.metadata.get("waiting_for_ia", False)
+                    ):
+                        # Descartar el audio o ignorarlo mientras procesamos tools o la IA habla/piensa
                         continue
 
                     await gemini_session.send(
@@ -228,6 +237,7 @@ class GeminiLiveClient:
 
                             model_turn = server_content.model_turn
                             if model_turn:
+                                session.metadata["waiting_for_ia"] = True
                                 for part in model_turn.parts:
                                     if part.text:
                                         logger.info(f"[{session.session_id}] IA: {part.text}")
@@ -246,6 +256,7 @@ class GeminiLiveClient:
 
                             if server_content.turn_complete:
                                 logger.debug(f"[{session.session_id}] Turno de IA completado")
+                                session.metadata["waiting_for_ia"] = False
 
                         tool_call = response.tool_call
                         if tool_call:
@@ -265,6 +276,7 @@ class GeminiLiveClient:
             pass
 
     async def _handle_tool_call(self, session: CallSession, gemini_session, tool_call):
+        session.metadata["waiting_for_ia"] = True
         function_responses = []
 
         for fc in tool_call.function_calls:
