@@ -11,7 +11,7 @@ from realtime.app import fastapi_app
 django_asgi_app = get_asgi_application()
 settings = get_settings()
 
-run_mode = os.environ.get("SERVICE_TYPE", settings.run_mode).lower()
+run_mode = os.environ.get("SERVICE_TYPE", getattr(settings, "run_mode", "hybrid")).lower()
 
 _initialized = False
 _init_lock = None
