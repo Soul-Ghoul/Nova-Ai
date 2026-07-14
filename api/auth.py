@@ -50,7 +50,7 @@ async def login_handler(request):
             max_age=24 * 3600,
             httponly=True,
             samesite="Lax",
-            secure=not request.META.get("HTTP_HOST", "").startswith("localhost") and not request.META.get("HTTP_HOST", "").startswith("127.0.0.1"),
+            secure=request.is_secure(),
             path="/"
         )
         return response
