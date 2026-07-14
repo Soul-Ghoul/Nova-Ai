@@ -36,6 +36,13 @@ from actions.transfer_call import (
     set_dependencies as set_transfer_deps,
 )
 from actions.end_call import handle_end_call
+from actions.pms_hotel import (
+    handle_pms_check_rooms,
+    handle_pms_room_status,
+    handle_pms_get_reservations,
+    handle_pms_create_reservation,
+    handle_pms_query,
+)
 
 settings = get_settings()
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -79,6 +86,11 @@ async def lifespan(app: FastAPI):
     function_registry.register("lookup_extension", handle_lookup_extension)
     function_registry.register("lookup_inventory", handle_lookup_inventory)
     function_registry.register("end_call", handle_end_call)
+    function_registry.register("pms_check_rooms", handle_pms_check_rooms)
+    function_registry.register("pms_room_status", handle_pms_room_status)
+    function_registry.register("pms_get_reservations", handle_pms_get_reservations)
+    function_registry.register("pms_create_reservation", handle_pms_create_reservation)
+    function_registry.register("pms_query", handle_pms_query)
     logger.info(f"Funciones registradas: {function_registry.registered_functions}")
 
     await ami_client.connect()
