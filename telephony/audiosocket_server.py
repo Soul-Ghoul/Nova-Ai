@@ -83,9 +83,15 @@ class AudioSocketServer:
                     payload = b""
 
                 if msg_type == MSG_TYPE_UUID:
-                    call_uuid = payload.decode("utf-8", errors="ignore").strip()
+                    if len(payload) == 16:
+                        try:
+                            call_uuid = str(uuid.UUID(bytes=payload))
+                        except Exception:
+                            call_uuid = payload.decode("utf-8", errors="ignore").strip()
+                    else:
+                        call_uuid = payload.decode("utf-8", errors="ignore").strip()
                     session.call_id = call_uuid
-                    logger.info(f"AudioSocket UUID recibido: {call_uuid}")
+                    logger.info(f"AudioSocket UUID recibido y formateado: {call_uuid}")
 
                 elif msg_type == MSG_TYPE_AUDIO:
                     # Fijar la frecuencia de muestreo de Asterisk al recibir el primer paquete de audio (el códec de llamada no cambia a mitad de llamada)
