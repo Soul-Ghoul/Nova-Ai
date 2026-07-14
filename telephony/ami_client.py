@@ -16,72 +16,94 @@ class AMIClient:
         self.username = settings.ami_username
         self.secret = settings.ami_secret
         self._connected = False
+        self._manager = None
 
     async def connect(self):
         """Conecta al servidor AMI de Asterisk."""
         try:
-            # TODO: Integrar panoramisk para conexión real
-            # from panoramisk import Manager
-            # self._manager = Manager(
-            #     host=self.host, port=self.port,
-            #     username=self.username, secret=self.secret
-            # )
-            # await self._manager.connect()
-            logger.info(f"AMI Client: modo simulación (target: {self.host}:{self.port})")
+            from panoramisk import Manager
+            self._manager = Manager(
+                host=self.host, port=self.port,
+                username=self.username, secret=self.secret
+            )
+            await self._manager.connect()
+            logger.info(f"✅ AMI Client conectado con éxito a {self.host}:{self.port}")
             self._connected = True
         except Exception as e:
-            logger.error(f"Error conectando a AMI: {e}")
+            logger.error(f"❌ Error conectando a AMI: {e}. Continuando en modo simulación.")
             self._connected = False
 
     async def disconnect(self):
+        if self._manager and self._connected:
+            try:
+                self._manager.close()
+            except Exception:
+                pass
         self._connected = False
         logger.info("AMI Client desconectado")
 
-    async def transfer(self, channel: str, extension: str, context: str = "from-internal"):
+    async def transfer(self, channel: str, extension: str, context: str = "from-extensions"):
         """
         Transfiere una llamada usando AMI Action: Redirect
-        En producción ejecutaría:
-            Action: Redirect
-            Channel: {channel}
-            Context: {context}
-            Exten: {extension}
-            Priority: 1
         """
-        if not self._connected:
+        if not self._connected or not self._manager:
             logger.warning("AMI no conectado, transferencia simulada")
+            logger.info(f"AMI Redirect: Channel={channel} -> Exten={extension} Context={context}")
+            return {"Response": "Success", "Message": f"Redirect sent (simulated) to {extension}"}
 
-        logger.info(f"AMI Redirect: Channel={channel} -> Exten={extension} Context={context}")
-
-        # TODO: Implementación real con panoramisk:
-        # response = await self._manager.send_action({
-        #     'Action': 'Redirect',
-        #     'Channel': channel,
-        #     'Context': context,
-        #     'Exten': extension,
-        #     'Priority': '1'
-        # })
-        # return response
-
-        return {"Response": "Success", "Message": f"Redirect sent (simulated) to {extension}"}
+        try:
+            logger.info(f"AMI Real Redirect: Channel={channel} -> Exten={extension} Context={context}")
+            response = await self._manager.send_action({
+                'Action': 'Redirect',
+                'Channel': channel,
+                'Context': context,
+                'Exten': extension,
+                'Priority': '1'
+            })
+            return response
+        except Exception as e:
+            logger.error(f"Error ejecutando AMI Redirect: {e}")
+            return {"Response": "Error", "Message": str(e)}
 
     async def hangup(self, channel: str, cause: int = 16):
         """Cuelga un canal específico."""
-        logger.info(f"AMI Hangup: Channel={channel} Cause={cause}")
+        if not self._connected or not self._manager:
+            logger.info(f"AMI Hangup: Channel={channel} Cause={cause}")
+            return {"Response": "Success", "Message": f"Hangup sent (simulated) for {channel}"}
 
-        # TODO: Implementación real:
-        # response = await self._manager.send_action({
-        #     'Action': 'Hangup',
-        #     'Channel': channel,
-        #     'Cause': str(cause)
-        # })
+        try:
+            logger.info(f"AMI Real Hangup: Channel={channel} Cause={cause}")
+            response = await self._manager.send_action({
+                'Action': 'Hangup',
+                'Channel': channel,
+                'Cause': str(cause)
+            })
+            return response
+        except Exception as e:
+            logger.error(f"Error ejecutando AMI Hangup: {e}")
+            return {"Response": "Error", "Message": str(e)}
 
-        return {"Response": "Success", "Message": f"Hangup sent (simulated) for {channel}"}
-
-    async def originate(self, extension: str, context: str = "from-internal",
-                        caller_id: str = "Nova <*999>"):
+    async def originate(self, extension: str, context: str = "from-extensions",
+                         caller_id: str = "Nova <*999>"):
         """Origina una nueva llamada."""
-        logger.info(f"AMI Originate: Exten={extension} CallerID={caller_id}")
-        return {"Response": "Success", "Message": f"Originate sent (simulated) to {extension}"}
+        if not self._connected or not self._manager:
+            logger.info(f"AMI Originate: Exten={extension} CallerID={caller_id}")
+            return {"Response": "Success", "Message": f"Originate sent (simulated) to {extension}"}
+
+        try:
+            logger.info(f"AMI Real Originate: Exten={extension} CallerID={caller_id}")
+            response = await self._manager.send_action({
+                'Action': 'Originate',
+                'Channel': f'PJSIP/{extension}',
+                'Context': context,
+                'Exten': extension,
+                'Priority': '1',
+                'CallerID': caller_id
+            })
+            return response
+        except Exception as e:
+            logger.error(f"Error ejecutando AMI Originate: {e}")
+            return {"Response": "Error", "Message": str(e)}
 
     @property
     def is_connected(self) -> bool:
