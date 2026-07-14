@@ -344,3 +344,48 @@ class DatabaseManager:
         async with self._db.execute(sql, (limit,)) as cursor:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
+
+    # ── PROMPTS CONFIG CRUD ────────────────────────────────────────────────────
+
+    async def load_prompt_config(self, user_id: int) -> dict | None:
+        """Carga la configuración del prompt para un usuario desde la base de datos."""
+        import json
+        sql = "SELECT * FROM prompt_config WHERE user_id = ?"
+        row = await self.fetch_one(sql, (user_id,))
+        if not row:
+            return None
+        res = dict(row)
+        for key in ("builder", "agent_builder"):
+            if res.get(key) and isinstance(res[key], str):
+                try:
+                    res[key] = json.loads(res[key])
+                except Exception:
+                    res[key] = {}
+        return res
+
+    async def save_prompt_config(self, user_id: int, config: dict):
+        """Guarda o actualiza la configuración del prompt de un usuario."""
+        import json
+        builder_str = json.dumps(config.get("builder", {}) or {})
+        agent_builder_str = json.dumps(config.get("agent_builder", {}) or {})
+        
+        sql = """
+            INSERT INTO prompt_config (user_id, mode, use_custom, voice, builder, raw_content, agent_id, agent_source, agent_builder)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                mode = excluded.mode,
+                use_custom = excluded.use_custom,
+                voice = excluded.voice,
+                builder = excluded.builder,
+                raw_content = excluded.raw_content,
+                agent_id = excluded.agent_id,
+                agent_source = excluded.agent_source,
+                agent_builder = excluded.agent_builder,
+                updated_at = CURRENT_TIMESTAMP
+        """
+        await self.execute(sql, (
+            user_id, config.get("mode", "builder"), config.get("use_custom", 0),
+            config.get("voice", "Nova"), builder_str, config.get("raw_content", ""),
+            config.get("agent_id", ""), config.get("agent_source", "preset"),
+            agent_builder_str
+        ))
