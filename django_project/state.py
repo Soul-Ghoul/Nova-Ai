@@ -20,7 +20,6 @@ from actions.lookup_extension import (
 from actions.lookup_inventory import (
     handle_lookup_inventory,
     set_worker as set_lookup_inv_worker,
-    set_db as set_lookup_inv_db,
 )
 from ai.inventory_worker import InventoryWorker
 from actions.transfer_call import (
@@ -201,7 +200,6 @@ async def init_resources():
 
     # Configurar dependencias
     set_lookup_ext_db(db)
-    set_lookup_inv_db(db)
     worker = InventoryWorker(db)
     set_lookup_inv_worker(worker)
     set_transfer_deps(db, ami_client)
