@@ -36,9 +36,17 @@ async def handle_transfer_call(target_name: str, session: CallSession = None, **
             "action": "offer_voicemail"
         }
 
-    if _ami_client and session and session.channel:
+    # Intentar resolver el canal real si está vacío en la sesión
+    channel = getattr(session, "channel", None)
+    if not channel and _ami_client and session and getattr(session, "call_id", None):
+        channel = _ami_client.uuid_to_channel.get(session.call_id)
+        if channel:
+            session.channel = channel
+            logger.info(f"Asociado canal {channel} a la sesión {session.session_id} mediante call_id {session.call_id}")
+
+    if _ami_client and session and channel:
         try:
-            await _ami_client.transfer(session.channel, extension)
+            await _ami_client.transfer(channel, extension)
             logger.info(f"Llamada transferida a {name} (ext. {extension})")
             return {
                 "success": True,

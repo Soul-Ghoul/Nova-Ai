@@ -17,6 +17,7 @@ class AMIClient:
         self.secret = settings.ami_secret
         self._connected = False
         self._manager = None
+        self.uuid_to_channel = {}
 
     async def connect(self):
         """Conecta al servidor AMI de Asterisk."""
@@ -26,12 +27,26 @@ class AMIClient:
                 host=self.host, port=self.port,
                 username=self.username, secret=self.secret
             )
+            
+            # Registrar el manejador de eventos de variables de Asterisk
+            self._manager.register_event('VarSet', self._handle_varset)
+            
             await self._manager.connect()
             logger.info(f"✅ AMI Client conectado con éxito a {self.host}:{self.port}")
             self._connected = True
         except Exception as e:
             logger.error(f"❌ Error conectando a AMI: {e}. Continuando en modo simulación.")
             self._connected = False
+
+    def _handle_varset(self, manager, event):
+        """Manejador de eventos que asocia el canal de Asterisk con el UUID de la llamada."""
+        var_name = event.get('Variable') or event.get('variable')
+        if var_name == 'MY_UUID':
+            uuid_val = (event.get('Value') or event.get('value') or "").strip()
+            channel = event.get('Channel') or event.get('channel')
+            if uuid_val and channel:
+                self.uuid_to_channel[uuid_val] = channel
+                logger.info(f"🔗 AMI: Mapeado UUID {uuid_val} al canal {channel}")
 
     async def disconnect(self):
         if self._manager and self._connected:
