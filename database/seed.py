@@ -30,7 +30,7 @@ async def seed_database(db: DatabaseManager):
                 """INSERT INTO agent_data_source 
                    (user_id, source_type, pms_url, pms_username, pms_password) 
                    VALUES (?, ?, ?, ?, ?)""",
-                (2, "pms", "http://127.0.0.1:8000", "admin", "admin")
+                (2, "pms", "https://backend-hoteleria.up.railway.app/", "admin_ai", "Ad_AI123")
             )
             logger.info("Usuarios y configuraciones de agentes por defecto sembrados con éxito.")
         else:
@@ -52,7 +52,7 @@ async def seed_database(db: DatabaseManager):
                     """INSERT INTO agent_data_source 
                        (user_id, source_type, pms_url, pms_username, pms_password) 
                        VALUES (?, ?, ?, ?, ?)""",
-                    (2, "pms", "http://127.0.0.1:8000", "admin", "admin")
+                    (2, "pms", "https://backend-hoteleria.up.railway.app/", "admin_ai", "Ad_AI123")
                 )
                 logger.info("Configuraciones por defecto de telefonía (ID 2) restablecidas.")
     except Exception as e:
