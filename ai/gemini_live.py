@@ -92,7 +92,7 @@ class GeminiLiveClient:
         voice_name = self._prompt_loader.get_voice(user_id=user_id)
 
         return types.LiveConnectConfig(
-            response_modalities=["AUDIO"],
+            response_modalities=["AUDIO", "TEXT"],
             system_instruction=types.Content(
                 parts=[types.Part(text=system_prompt)]
             ),
