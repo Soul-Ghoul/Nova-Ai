@@ -2,7 +2,7 @@ from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from asgiref.sync import async_to_sync
-from django_project.state import db
+from django_project import state
 
 class AdminAuthMiddleware:
     """
@@ -28,7 +28,7 @@ class AdminAuthMiddleware:
                 return JsonResponse({"detail": "No autorizado. Sesión no iniciada."}, status=401)
 
             try:
-                user = async_to_sync(db.validate_session_token)(token)
+                user = async_to_sync(state.db.validate_session_token)(token)
             except Exception as e:
                 response = JsonResponse({
                     "detail": "Error de base de datos al validar sesión.",
