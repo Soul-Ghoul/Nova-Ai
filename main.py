@@ -144,14 +144,20 @@ app.include_router(admin_router)
 @app.websocket("/ws/voice")
 async def websocket_voice(websocket: WebSocket):
     await websocket.accept()
-    session = await session_manager.create_session(source="web")
-    logger.info(f"WebSocket de voz conectado: {session.session_id}")
+
+    # Leer parámetros de la URL del WebSocket (ej: ?agent=nova_default&user_id=2)
+    agent_name = websocket.query_params.get("agent", "nova_default")
+    user_id_raw = websocket.query_params.get("user_id")
+    user_id = int(user_id_raw) if user_id_raw and user_id_raw.isdigit() else None
+
+    session = await session_manager.create_session(source="web", user_id=user_id)
+    logger.info(f"WebSocket de voz conectado: {session.session_id} (agent={agent_name}, user_id={user_id})")
 
     vad = VoiceActivityDetector()
 
     try:
         gemini_task = asyncio.create_task(
-            gemini_client.start_session(session)
+            gemini_client.start_session(session, prompt_name=agent_name, user_id=user_id)
         )
 
         send_task = asyncio.create_task(
