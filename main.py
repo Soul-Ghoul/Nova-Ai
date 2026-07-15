@@ -138,8 +138,7 @@ from django_project.asgi import django_asgi_app
 app.include_router(health_router)
 app.include_router(admin_router)
 
-# Montar la aplicación Django ASGI en la raíz como fallback para el panel web y login
-app.mount("/", django_asgi_app)
+
 
 
 @app.websocket("/ws/voice")
@@ -232,6 +231,12 @@ async def _send_audio_to_browser(session, websocket: WebSocket):
     except Exception as e:
         if session.active:
             logger.debug(f"Send audio to browser cerrado: {e}")
+
+
+# Montar la aplicación Django ASGI en la raíz como fallback para el panel web y login
+# IMPORTANTE: Debe ir DESPUÉS de todas las rutas FastAPI (incluyendo WebSocket)
+# para que Django no intercepte las conexiones WebSocket.
+app.mount("/", django_asgi_app)
 
 
 if __name__ == "__main__":
