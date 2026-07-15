@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import traceback
 from pathlib import Path
 from urllib.parse import urlparse
 import uuid
@@ -438,29 +439,34 @@ async def _save_agent_to_db(user_id: int, agent_id: str, data: dict, compiled: s
 
 
 async def custom_agents_handler(request):
-    user_id = request.admin_user["id"]
-    if request.method == "GET":
-        return JsonResponse(await _load_custom_agents(user_id), safe=False)
+    try:
+        user_id = request.admin_user["id"]
+        if request.method == "GET":
+            return JsonResponse(await _load_custom_agents(user_id), safe=False)
 
-    elif request.method == "POST":
-        try:
-            data = json.loads(request.body.decode("utf-8"))
-            agent_id = str(uuid.uuid4())[:8]
-            data["id"] = agent_id
+        elif request.method == "POST":
+            try:
+                data = json.loads(request.body.decode("utf-8"))
+                agent_id = str(uuid.uuid4())[:8]
+                data["id"] = agent_id
 
-            builder = data.get("builder", {})
-            compiled = ""
-            if builder:
-                loader = _get_prompt_loader()
-                compiled = loader._build_from_config(builder)
+                builder = data.get("builder", {})
+                compiled = ""
+                if builder:
+                    loader = _get_prompt_loader()
+                    compiled = loader._build_from_config(builder)
 
-            await _save_agent_to_db(user_id, agent_id, data, compiled)
+                await _save_agent_to_db(user_id, agent_id, data, compiled)
 
-            return JsonResponse({"success": True, "id": agent_id, "message": f"Agente '{data.get('profile_name', '')}' guardado en la base de datos"})
-        except Exception as e:
-            return JsonResponse({"detail": str(e)}, status=400)
+                return JsonResponse({"success": True, "id": agent_id, "message": f"Agente '{data.get('profile_name', '')}' guardado en la base de datos"})
+            except Exception as e:
+                return JsonResponse({"detail": str(e)}, status=400)
 
-    return HttpResponse(status=405)
+        return HttpResponse(status=405)
+    except Exception as e:
+        logger.error(f"ERROR custom_agents_handler: {e}")
+        traceback.print_exc()
+        return JsonResponse({"detail": str(e)}, status=500)
 
 
 async def delete_custom_agent(request, agent_id: str):
@@ -606,30 +612,35 @@ def _mask_sensitive(value: str, visible_chars: int = 4) -> str:
 
 
 async def get_agent_data_source(request):
-    if request.method == "GET":
-        user_id = request.admin_user["id"]
-        config = await _db.get_agent_data_source(user_id)
-        if not config:
+    try:
+        if request.method == "GET":
+            user_id = request.admin_user["id"]
+            config = await _db.get_agent_data_source(user_id)
+            if not config:
+                return JsonResponse({
+                    "source_type": "internal",
+                    "pg_connection_string": "",
+                    "odoo_url": "",
+                    "odoo_db": "",
+                    "odoo_api_key": "",
+                    "odoo_user": "",
+                })
             return JsonResponse({
-                "source_type": "internal",
-                "pg_connection_string": "",
-                "odoo_url": "",
-                "odoo_db": "",
-                "odoo_api_key": "",
-                "odoo_user": "",
+                "source_type": config.get("source_type", "internal"),
+                "pg_connection_string": _mask_sensitive(config.get("pg_connection_string", "")) if config.get("pg_connection_string") else "",
+                "odoo_url": config.get("odoo_url", ""),
+                "odoo_db": config.get("odoo_db", ""),
+                "odoo_api_key": _mask_sensitive(config.get("odoo_api_key", "")) if config.get("odoo_api_key") else "",
+                "odoo_user": config.get("odoo_user", ""),
+                "pms_url": config.get("pms_url", ""),
+                "pms_username": config.get("pms_username", ""),
+                "pms_password": _mask_sensitive(config.get("pms_password", "")) if config.get("pms_password") else "",
             })
-        return JsonResponse({
-            "source_type": config.get("source_type", "internal"),
-            "pg_connection_string": _mask_sensitive(config.get("pg_connection_string", "")) if config.get("pg_connection_string") else "",
-            "odoo_url": config.get("odoo_url", ""),
-            "odoo_db": config.get("odoo_db", ""),
-            "odoo_api_key": _mask_sensitive(config.get("odoo_api_key", "")) if config.get("odoo_api_key") else "",
-            "odoo_user": config.get("odoo_user", ""),
-            "pms_url": config.get("pms_url", ""),
-            "pms_username": config.get("pms_username", ""),
-            "pms_password": _mask_sensitive(config.get("pms_password", "")) if config.get("pms_password") else "",
-        })
-    return HttpResponse(status=405)
+        return HttpResponse(status=405)
+    except Exception as e:
+        logger.error(f"ERROR get_agent_data_source: {e}")
+        traceback.print_exc()
+        return JsonResponse({"detail": str(e)}, status=500)
 
 
 async def save_agent_data_source(request):
