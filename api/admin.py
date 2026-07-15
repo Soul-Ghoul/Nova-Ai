@@ -136,7 +136,7 @@ async def list_prompts():
 
 @router.get("/prompts/{name}")
 async def get_prompt(name: str):
-    content = _prompt_loader.load(name)
+    content = await _prompt_loader.load(name)
     return {"name": name, "content": content}
 
 
@@ -185,7 +185,7 @@ async def save_prompt_config(data: dict):
 async def get_active_prompt_preview():
     from ai.prompt_loader import PromptLoader
     loader = PromptLoader()
-    text = loader.load()
+    text = await loader.load()
     return {
         "prompt_preview": text[:500] + "..." if len(text) > 500 else text,
         "total_chars": len(text),

@@ -284,7 +284,7 @@ async def list_prompts(request):
 
 async def prompt_detail(request, name: str):
     if request.method == "GET":
-        content = _get_prompt_loader().load(name)
+        content = await _get_prompt_loader().load(name)
         return JsonResponse({"name": name, "content": content})
     elif request.method == "PUT":
         try:
