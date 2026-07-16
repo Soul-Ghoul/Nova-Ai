@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     prompts_dir: str = Field(default="./config/prompts")
     tools_dir: str = Field(default="./config/tools")
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 @lru_cache
